@@ -43,18 +43,27 @@ jobs:
           fi
           echo "Build successful!"
           ls -lh output/libziskos.a
+          if [ -f output/lib.dll ]; then
+            echo ".NET library also built:"
+            ls -lh output/lib.dll
+          fi
 
-      - name: Rename to lib.a
+      - name: Rename artifacts
         run: |
           mv output/libziskos.a output/lib.a
           ls -lh output/lib.a
+          if [ -f output/lib.dll ]; then
+            ls -lh output/lib.dll
+          fi
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: lib-${{ env.ZISK_TAG }}
-          path: output/lib.a
-          if-no-files-found: error
+          path: |
+            output/lib.a
+            output/lib.dll
+          if-no-files-found: ignore
 
       - name: Create Release
         if: github.event.inputs.create_release == 'true'
@@ -62,7 +71,9 @@ jobs:
         with:
           tag_name: ${{ env.ZISK_TAG }}
           name: libziskos ${{ env.ZISK_TAG }}
-          files: output/lib.a
+          files: |
+            output/lib.a
+            output/lib.dll
           body: |
             libziskos build for RISC-V 64-bit (rv64imad)
 

@@ -6,7 +6,8 @@
       "arch": "riscv64",
       "os": "linux",
       "libc": "zisk",
-      "static_lib": "lib.a"
+      "static_lib": "lib.a",
+      "dotnet_lib": "lib.dll"
     }
   ]
 }

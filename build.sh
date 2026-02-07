@@ -29,7 +29,12 @@ cleanup
 prepare_repo
 build_docker_image
 build_in_docker
+build_dotnet
 
 echo "Build completed"
 echo "Output: ${OUTPUT_DIR}/libziskos.a"
 echo "Size: $(du -h ${OUTPUT_DIR}/libziskos.a | cut -f1)"
+if [ -f "${OUTPUT_DIR}/lib.dll" ]; then
+    echo "Output: ${OUTPUT_DIR}/lib.dll"
+    echo "Size: $(du -h ${OUTPUT_DIR}/lib.dll | cut -f1)"
+fi

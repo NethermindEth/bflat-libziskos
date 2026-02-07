@@ -80,3 +80,34 @@ function build_in_docker() {
         fi
     popd
 }
+
+function build_dotnet() {
+    # Build .NET library if the project exists
+    if [ -f "dotnet/zisklib.riscv64.csproj" ] ; then
+        echo "Building .NET library..."
+        docker run --rm \
+        -v "$(pwd):/workspace" \
+        -w /workspace \
+        mcr.microsoft.com/dotnet/sdk:10.0 \
+        bash -c "
+            set -e
+            echo 'Building zisklib.riscv64.csproj...'
+            dotnet build dotnet/zisklib.riscv64.csproj -c:Release || exit 1
+            echo '.NET build completed!'
+        " || fail "Failed to build .NET library"
+
+        # Copy the built DLL
+        echo "Copying built .NET library..."
+        BUILT_DLL="dotnet/bin/Release/net10.0/linux-riscv64/zisklib.dll"
+        if [ -f "${BUILT_DLL}" ]; then
+            cp "${BUILT_DLL}" "${OUTPUT_DIR}/lib.dll" || fail "Failed to copy built .NET library"
+            echo ".NET library copied to ${OUTPUT_DIR}/lib.dll"
+        else
+            echo "Warning: .NET library not found at ${BUILT_DLL}"
+            echo "Searching for available DLLs..."
+            find dotnet/bin -name "*.dll" -type f || true
+        fi
+    else
+        fail "Failed to find zisklib project"
+    fi
+}
