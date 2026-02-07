@@ -47,6 +47,10 @@ jobs:
             echo ".NET library also built:"
             ls -lh output/lib.dll
           fi
+          if [ -f output/bflat-manifest.json ]; then
+            echo "Manifest file:"
+            ls -lh output/bflat-manifest.json
+          fi
 
       - name: Rename artifacts
         run: |
@@ -54,6 +58,9 @@ jobs:
           ls -lh output/lib.a
           if [ -f output/lib.dll ]; then
             ls -lh output/lib.dll
+          fi
+          if [ -f output/bflat-manifest.json ]; then
+            ls -lh output/bflat-manifest.json
           fi
 
       - name: Upload artifacts
@@ -63,6 +70,7 @@ jobs:
           path: |
             output/lib.a
             output/lib.dll
+            output/bflat-manifest.json
           if-no-files-found: ignore
 
       - name: Create Release
@@ -74,6 +82,7 @@ jobs:
           files: |
             output/lib.a
             output/lib.dll
+            output/bflat-manifest.json
           body: |
             libziskos build for RISC-V 64-bit (rv64imad)
 
