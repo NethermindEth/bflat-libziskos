@@ -81,6 +81,32 @@ function build_in_docker() {
     popd
 }
 
+function build_syscalls() {
+    # Build zisk_syscalls.S and add to lib.a
+    if [ -f "${SCRIPT_DIR}/zisk_syscalls/zisk_syscalls.S" ]; then
+        echo "Building zisk_syscalls.S..."
+        docker run --rm \
+        -v "${SCRIPT_DIR}/zisk_syscalls:/syscalls" \
+        -v "$(pwd)/${OUTPUT_DIR}:/output" \
+        -w /syscalls \
+        ziskos-builder \
+        bash -c "
+            set -e
+            echo 'Assembling zisk_syscalls.S...'
+            riscv64-linux-gnu-as --march=rv64ima --mabi=lp64 zisk_syscalls.S -o zisk_syscalls.o || exit 1
+
+            echo 'Adding zisk_syscalls.o to lib.a...'
+            cd /output
+            riscv64-linux-gnu-ar r libziskos.a /syscalls/zisk_syscalls.o || exit 1
+            riscv64-linux-gnu-ranlib libziskos.a || exit 1
+
+            echo 'zisk_syscalls added to lib.a'
+        " || fail "Failed to build and add zisk_syscalls"
+    else
+        echo "Skipping zisk_syscalls - zisk_syscalls.S not found"
+    fi
+}
+
 function build_dotnet() {
     # Build .NET library if the project exists
     if [ -f "dotnet/zisklib.riscv64.csproj" ] ; then
