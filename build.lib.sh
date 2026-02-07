@@ -83,10 +83,10 @@ function build_in_docker() {
 
 function build_syscalls() {
     # Build zisk_syscalls.S and add to lib.a
-    if [ -f "${SCRIPT_DIR}/zisk_syscalls/zisk_syscalls.S" ]; then
+    if [ -f "${SCRIPT_DIR}/src/zisk_syscalls/zisk_syscalls.S" ]; then
         echo "Building zisk_syscalls.S..."
         docker run --rm \
-        -v "${SCRIPT_DIR}/zisk_syscalls:/syscalls" \
+        -v "${SCRIPT_DIR}/src/zisk_syscalls:/syscalls" \
         -v "$(pwd)/${OUTPUT_DIR}:/output" \
         -w /syscalls \
         ziskos-builder \
@@ -109,7 +109,7 @@ function build_syscalls() {
 
 function build_dotnet() {
     # Build .NET library if the project exists
-    if [ -f "dotnet/zisklib.riscv64.csproj" ] ; then
+    if [ -f "${SCRIPT_DIR}/src/dotnet/zisklib.riscv64.csproj" ] ; then
         echo "Building .NET library..."
         docker run --rm \
         -v "$(pwd):/workspace" \
@@ -118,20 +118,20 @@ function build_dotnet() {
         bash -c "
             set -e
             echo 'Building zisklib.riscv64.csproj...'
-            dotnet build dotnet/zisklib.riscv64.csproj -c:Release || exit 1
+            dotnet build src/dotnet/zisklib.riscv64.csproj -c:Release || exit 1
             echo '.NET build completed!'
         " || fail "Failed to build .NET library"
 
         # Copy the built DLL
         echo "Copying built .NET library..."
-        BUILT_DLL="dotnet/bin/Release/net10.0/linux-riscv64/zisklib.dll"
+        BUILT_DLL="${SCRIPT_DIR}/src/dotnet/bin/Release/net10.0/linux-riscv64/zisklib.dll"
         if [ -f "${BUILT_DLL}" ]; then
             cp "${BUILT_DLL}" "${OUTPUT_DIR}/lib.dll" || fail "Failed to copy built .NET library"
             echo ".NET library copied to ${OUTPUT_DIR}/lib.dll"
         else
             echo "Warning: .NET library not found at ${BUILT_DLL}"
             echo "Searching for available DLLs..."
-            find dotnet/bin -name "*.dll" -type f || true
+            find ${SCRIPT_DIR}/src/dotnet/bin -name "*.dll" -type f || true
         fi
     else
         fail "Failed to find zisklib project"
