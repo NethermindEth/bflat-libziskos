@@ -21,7 +21,7 @@ The reason for choosing this target over rv64im is pretty simple. It is much mor
 
 Each release includes:
 
-- `lib.a` - static library with ziskos functionality (precompiles).
+- `lib.a` - static library with ziskos functionality (precompiles) and direct system call wrappers (`zisk_syscalls.S` assembled for rv64ima).
 - `lib.dll` - .NET managed library.
 
 ## Usage
@@ -58,6 +58,23 @@ export ZISK_TAG=v0.15.0
 ```bash
 ls -lh output/
 ```
+
+## Build Details
+
+The build process:
+
+1. **Clones the zisk repository** at the specified tag
+2. **Applies minimal patches**:
+   - Adds `crate-type = ["staticlib", "rlib"]` to `Cargo.toml`
+   - Skips C++ library compilation for zkvm target in `lib-c/build.rs`
+3. **Builds Rust library** using a custom RISC-V target specification (`riscv64imad-zisk-zkvm-elf`)
+4. **Assembles system call wrappers** from `zisk_syscalls/zisk_syscalls.S` with `riscv64-linux-gnu-as --march=rv64ima --mabi=lp64`
+5. **Adds syscalls to lib.a** using `ar` to merge the object file into the static library
+6. **Builds .NET library** if the project exists in the zisk repository
+
+The final `lib.a` contains:
+- ziskos core functionality (precompiles, runtime)
+- Direct system call wrappers for zkVM syscalls
 
 ## Contributing
 
