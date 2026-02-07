@@ -1,0 +1,79 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      zisk_tag:
+        description: "Zisk repository tag to build"
+        required: true
+        default: "v0.15.0"
+      create_release:
+        description: "Create GitHub release"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set ZISK_TAG
+        run: |
+          echo "ZISK_TAG=${{ github.event.inputs.zisk_tag }}" >> $GITHUB_ENV
+
+      - name: Build libziskos
+        run: ./build.sh
+        env:
+          ZISK_TAG: ${{ env.ZISK_TAG }}
+
+      - name: Verify build output
+        run: |
+          if [ ! -f output/libziskos.a ]; then
+            echo "Error: libziskos.a not found!"
+            exit 1
+          fi
+          echo "Build successful!"
+          ls -lh output/libziskos.a
+
+      - name: Rename to lib.a
+        run: |
+          mv output/libziskos.a output/lib.a
+          ls -lh output/lib.a
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-${{ env.ZISK_TAG }}
+          path: output/lib.a
+          if-no-files-found: error
+
+      - name: Create Release
+        if: github.event.inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.ZISK_TAG }}
+          name: libziskos ${{ env.ZISK_TAG }}
+          files: output/lib.a
+          body: |
+            libziskos build for RISC-V 64-bit (rv64imad)
+
+            **Target**: riscv64imad-zisk-zkvm-elf
+            **ISA**: RV64IMAD (Integer, Multiplication, Atomic, Double-precision FP)
+            **ABI**: LP64D
+            **OS**: zkvm
+            **Vendor**: zisk
+
+            Built from zisk repository tag: ${{ env.ZISK_TAG }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

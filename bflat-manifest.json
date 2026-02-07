@@ -1,0 +1,12 @@
+{
+  "name": "libziskos",
+  "package_version": "1.0.0",
+  "builds": [
+    {
+      "arch": "riscv64",
+      "os": "linux",
+      "libc": "zisk",
+      "static_lib": "lib.a"
+    }
+  ]
+}
