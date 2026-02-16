@@ -57,7 +57,8 @@ function build_in_docker() {
         bash -c "
             set -e
             echo 'Patching lib-c/build.rs for zkvm target...'
-            sed -i '7a\\    if env::var(\"CARGO_CFG_TARGET_OS\").unwrap_or_default() == \"zkvm\" {\\n        println!(\"cargo:rustc-cfg=feature=\\\\\"no_lib_link\\\\\"\");\\n        return;\\n    }\\n' lib-c/build.rs
+            sed -i '3a\\use std::env;' lib-c/build.rs
+            sed -i '9a\\    if env::var(\"CARGO_CFG_TARGET_OS\").unwrap_or_default() == \"zkvm\" {\\n        println!(\"cargo:rustc-cfg=feature=\\\\\"no_lib_link\\\\\"\");\\n        return;\\n    }' lib-c/build.rs
 
             echo 'Building ziskos entrypoint for riscv64imad-zisk-zkvm-elf...'
             cd ziskos/entrypoint

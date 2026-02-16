@@ -6,7 +6,7 @@ on:
       zisk_tag:
         description: "Zisk repository tag to build"
         required: true
-        default: "v0.15.0"
+        default: "pre-develop-0.16.0"
       create_release:
         description: "Create GitHub release"
         required: false

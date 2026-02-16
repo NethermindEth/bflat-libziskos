@@ -55,3 +55,8 @@ ZKVM_CSR_VOID     zkvm_bls12_381_complex_add, 0x80E
 ZKVM_CSR_VOID     zkvm_bls12_381_complex_sub, 0x80F
 ZKVM_CSR_VOID     zkvm_bls12_381_complex_mul, 0x810
 ZKVM_CSR_RET_U64  zkvm_add256,                0x811
+ZKVM_CSR_VOID     zkvm_poseidon2,             0x812
+ZKVM_CSR_VOID     zkvm_dma_memcpy,            0x813
+ZKVM_CSR_VOID     zkvm_dma_memcmp,            0x814
+ZKVM_CSR_VOID     zkvm_secp256r1_add,         0x815
+ZKVM_CSR_VOID     zkvm_secp256r1_dbl,         0x816
