@@ -18,6 +18,7 @@
   "executables": true,
   "panic-strategy": "abort",
   "relocation-model": "static",
+  "code-model": "medium",
   "emit-debug-gdb-scripts": false,
   "eh-frame-header": false,
   "disable-redzone": true
