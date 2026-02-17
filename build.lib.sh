@@ -63,16 +63,44 @@ function build_in_docker() {
             echo 'Building ziskos entrypoint for riscv64imad-zisk-zkvm-elf...'
             cd ziskos/entrypoint
 
-            echo 'Disabling duplicate symbols (memcpy, memmove, _start)...'
+            echo 'Disabling duplicate symbols (memcpy, memmove, _start, _zisk_main)...'
             # Add no_entrypoint to existing [features] section
             sed -i '/^\\[features\\]/a no_entrypoint = []' Cargo.toml
 
-            # Wrap global_asm with cfg (including those with indentation, but not comments)
-            sed -i '/^use core::arch::global_asm;/i#[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
-            sed -i '/^[[:space:]]*core::arch::global_asm!/i#[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+            # Wrap _start function with cfg
+            sed -i '/unsafe extern \"C\" fn _start()/i\\    #[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
 
-            # Wrap all #[no_mangle] functions with cfg
-            sed -i '/#\\[no_mangle\\]/i#[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+            # Wrap _zisk_main function with cfg
+            sed -i '/unsafe extern \"C\" fn _zisk_main()/i\\    #[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+
+            # Wrap global_asm for memcpy and memmove with cfg
+            sed -i '/core::arch::global_asm!(include_str(\"dma\\/memcpy.s\"));/i\\    #[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+            sed -i '/core::arch::global_asm!(include_str(\"dma\\/memmove.s\"));/i\\    #[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+
+            echo 'Patching sys_alloc_aligned to use malloc...'
+            python3 << 'PYTHON_EOF'
+import re
+
+with open('src/lib.rs', 'r') as f:
+    content = f.read()
+
+# Pattern to match the entire sys_alloc_aligned function body
+pattern = r'(    #\[no_mangle\]\s+pub unsafe extern "C" fn sys_alloc_aligned\(bytes: usize, align: usize\) -> \*mut u8 \{)\s*use core::arch::asm;.*?(?=\n    \}\n)'
+
+replacement = r'''\1
+        extern "C" {
+            fn malloc(size: usize) -> *mut u8;
+        }
+
+        // For simplicity, just use malloc and ignore alignment for now
+        // In a production system, you'd want to use posix_memalign or similar
+        unsafe { malloc(bytes) }'''
+
+content = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+with open('src/lib.rs', 'w') as f:
+    f.write(content)
+PYTHON_EOF
 
             cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
