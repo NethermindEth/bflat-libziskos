@@ -62,7 +62,19 @@ function build_in_docker() {
 
             echo 'Building ziskos entrypoint for riscv64imad-zisk-zkvm-elf...'
             cd ziskos/entrypoint
-            cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec
+
+            echo 'Disabling duplicate symbols (memcpy, memmove, _start)...'
+            # Add no_entrypoint to existing [features] section
+            sed -i '/^\\[features\\]/a no_entrypoint = []' Cargo.toml
+
+            # Wrap global_asm with cfg (including those with indentation, but not comments)
+            sed -i '/^use core::arch::global_asm;/i#[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+            sed -i '/^[[:space:]]*core::arch::global_asm!/i#[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+
+            # Wrap all #[no_mangle] functions with cfg
+            sed -i '/#\\[no_mangle\\]/i#[cfg(not(feature = \"no_entrypoint\"))]' src/lib.rs
+
+            cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
             echo 'Build completed!'
         " || fail "Failed to build ziskos entrypoint"
