@@ -7,7 +7,8 @@
       "os": "linux",
       "libc": "zisk",
       "static_lib": "lib.a",
-      "dotnet_lib": "lib.dll"
+      "dotnet_lib": "lib.dll",
+      "dotnet_assemblyname": "zisklib"
     }
   ]
 }
