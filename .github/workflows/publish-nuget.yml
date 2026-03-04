@@ -118,9 +118,9 @@ jobs:
         working-directory: src/bindings
         run: |
           dotnet pack Nethermind.ZiskBindings.csproj -c release
-          # dotnet nuget push ./artifacts/package/release/*.nupkg \
-          #   -k ${{ secrets.NUGETTEST_API_KEY }} \
-          #   -s https://apiint.nugettest.org/v3/index.json
+          dotnet nuget push ./artifacts/package/release/*.nupkg \
+            -k ${{ secrets.NUGETTEST_API_KEY }} \
+            -s https://apiint.nugettest.org/v3/index.json
           # dotnet nuget push ./artifacts/package/release/*.nupkg \
           #   -k ${{ github.event.inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
           #   -s ${{ github.event.inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
