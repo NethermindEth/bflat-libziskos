@@ -63,6 +63,7 @@ jobs:
 
       - name: Move static library to bindings
         run: |
+          ls .
           mkdir -p src/bindings/Nethermind.ZiskBindings/runtimes/linux-x64/native
           mv libziskos/libziskos.a src/bindings/Nethermind.ZiskBindings/runtimes/linux-x64/native/
 
