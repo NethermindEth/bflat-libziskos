@@ -1,0 +1,102 @@
+name: Publish ZisK Docker image
+
+on:
+  push:
+    branches: [feature/package] # To be removed when merged
+  workflow_dispatch:
+    inputs:
+      zisk_ref:
+        description: Zisk ref
+        required: true
+        default: pre-develop-0.16.0
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+    outputs:
+      zisk_commit: ${{ steps.pack.outputs.commit-hash }}
+    steps:
+      - name: Check out zisk repository
+        uses: actions/checkout@v4
+        with:
+          repository: 0xPolygonHermez/zisk
+          ref: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }} # To be removed when merged
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install stable --profile default
+          rustup default stable
+          rustup target add $TARGET
+
+      - name: Install dependencies
+        working-directory: tools/test-env
+        run: ./install_deps.sh
+
+      - name: Build
+        run: cargo build --release --target $TARGET
+
+      - name: Pack binaries
+        id: pack
+        run: |
+          mkdir -p zisk-dist/bin
+          cp ./target/$TARGET/release/cargo-zisk zisk-dist/bin/
+          cp ./target/$TARGET/release/ziskemu zisk-dist/bin/
+          cp ./target/$TARGET/release/riscv2zisk zisk-dist/bin/
+          cp ./target/$TARGET/release/zisk-coordinator zisk-dist/bin/
+          cp ./target/$TARGET/release/zisk-worker zisk-dist/bin/
+          cp ./ziskup/ziskup zisk-dist/bin/
+          cp ./target/$TARGET/release/libziskclib.a zisk-dist/bin/
+
+          mkdir -p zisk-dist/zisk/emulator-asm/src
+          cp -r ./emulator-asm/src zisk-dist/zisk/emulator-asm
+          cp -r ./lib-c/ zisk-dist/zisk
+          cp ./emulator-asm/Makefile zisk-dist/zisk/emulator-asm
+
+          zisk_commit=$(git rev-parse HEAD)
+          echo "commit-hash=$zisk_commit" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo_zisk_linux_amd64
+          path: zisk-dist
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      TARGET: x86_64-unknown-linux-gnu
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download ZisK binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: cargo_zisk_linux_amd64
+          path: zisk
+
+      # - name: Log in to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_HUB_USERNAME }}
+      #     password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+      - name: Publish to Docker Hub
+        run: |
+          docker buildx build . \
+            -t nethermindeth/zisk:latest \
+            -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }} \
+            --push
