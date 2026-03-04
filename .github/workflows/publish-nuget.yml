@@ -34,7 +34,7 @@ jobs:
 
       - name: Build static library
         env:
-          ZISK_TAG: ${{ github.event.inputs.zisk_ref }}
+          ZISK_TAG: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }}
         run: ./build.sh
 
       - name: Upload static library
