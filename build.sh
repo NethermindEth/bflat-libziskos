@@ -29,7 +29,7 @@ cleanup
 prepare_repo
 build_docker_image
 build_in_docker
-#build_syscalls
+build_syscalls
 #build_dotnet
 #copy_manifest
 
