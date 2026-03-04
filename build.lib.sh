@@ -95,68 +95,68 @@ function build_in_docker() {
     popd
 }
 
-function build_syscalls() {
-    # Build zisk_syscalls.S and add to lib.a
-    if [ -f "${SCRIPT_DIR}/src/zisk_syscalls/zisk_syscalls.S" ]; then
-        echo "Building zisk_syscalls.S..."
-        docker run --rm \
-        -v "${SCRIPT_DIR}/src/zisk_syscalls:/syscalls" \
-        -v "$(pwd)/${OUTPUT_DIR}:/output" \
-        -w /syscalls \
-        ziskos-builder \
-        bash -c "
-            set -e
-            echo 'Assembling zisk_syscalls.S...'
-            riscv64-linux-gnu-as --march=rv64ima --mabi=lp64 zisk_syscalls.S -o zisk_syscalls.o || exit 1
+# function build_syscalls() {
+#     # Build zisk_syscalls.S and add to lib.a
+#     if [ -f "${SCRIPT_DIR}/src/zisk_syscalls/zisk_syscalls.S" ]; then
+#         echo "Building zisk_syscalls.S..."
+#         docker run --rm \
+#         -v "${SCRIPT_DIR}/src/zisk_syscalls:/syscalls" \
+#         -v "$(pwd)/${OUTPUT_DIR}:/output" \
+#         -w /syscalls \
+#         ziskos-builder \
+#         bash -c "
+#             set -e
+#             echo 'Assembling zisk_syscalls.S...'
+#             riscv64-linux-gnu-as --march=rv64ima --mabi=lp64 zisk_syscalls.S -o zisk_syscalls.o || exit 1
 
-            echo 'Adding zisk_syscalls.o to lib.a...'
-            cd /output
-            riscv64-linux-gnu-ar r libziskos.a /syscalls/zisk_syscalls.o || exit 1
-            riscv64-linux-gnu-ranlib libziskos.a || exit 1
+#             echo 'Adding zisk_syscalls.o to lib.a...'
+#             cd /output
+#             riscv64-linux-gnu-ar r libziskos.a /syscalls/zisk_syscalls.o || exit 1
+#             riscv64-linux-gnu-ranlib libziskos.a || exit 1
 
-            echo 'zisk_syscalls added to lib.a'
-        " || fail "Failed to build and add zisk_syscalls"
-    else
-        echo "Skipping zisk_syscalls - zisk_syscalls.S not found"
-    fi
-}
+#             echo 'zisk_syscalls added to lib.a'
+#         " || fail "Failed to build and add zisk_syscalls"
+#     else
+#         echo "Skipping zisk_syscalls - zisk_syscalls.S not found"
+#     fi
+# }
 
-function build_dotnet() {
-    # Build .NET library if the project exists
-    if [ -f "${SCRIPT_DIR}/src/dotnet/zisklib.riscv64.csproj" ] ; then
-        echo "Building .NET library..."
-        docker run --rm \
-        -v "$(pwd):/workspace" \
-        -w /workspace \
-        mcr.microsoft.com/dotnet/sdk:10.0 \
-        bash -c "
-            set -e
-            echo 'Building zisklib.riscv64.csproj...'
-            dotnet build src/dotnet/zisklib.riscv64.csproj -c:Release || exit 1
-            echo '.NET build completed!'
-        " || fail "Failed to build .NET library"
+# function build_dotnet() {
+#     # Build .NET library if the project exists
+#     if [ -f "${SCRIPT_DIR}/src/dotnet/zisklib.riscv64.csproj" ] ; then
+#         echo "Building .NET library..."
+#         docker run --rm \
+#         -v "$(pwd):/workspace" \
+#         -w /workspace \
+#         mcr.microsoft.com/dotnet/sdk:10.0 \
+#         bash -c "
+#             set -e
+#             echo 'Building zisklib.riscv64.csproj...'
+#             dotnet build src/dotnet/zisklib.riscv64.csproj -c:Release || exit 1
+#             echo '.NET build completed!'
+#         " || fail "Failed to build .NET library"
 
-        # Copy the built DLL
-        echo "Copying built .NET library..."
-        BUILT_DLL="${SCRIPT_DIR}/src/dotnet/bin/Release/net10.0/linux-riscv64/zisklib.dll"
-        if [ -f "${BUILT_DLL}" ]; then
-            cp "${BUILT_DLL}" "${OUTPUT_DIR}/lib.dll" || fail "Failed to copy built .NET library"
-            echo ".NET library copied to ${OUTPUT_DIR}/lib.dll"
-        else
-            echo "Warning: .NET library not found at ${BUILT_DLL}"
-            echo "Searching for available DLLs..."
-            find ${SCRIPT_DIR}/src/dotnet/bin -name "*.dll" -type f || true
-        fi
-    else
-        fail "Failed to find zisklib project"
-    fi
-}
+#         # Copy the built DLL
+#         echo "Copying built .NET library..."
+#         BUILT_DLL="${SCRIPT_DIR}/src/dotnet/bin/Release/net10.0/linux-riscv64/zisklib.dll"
+#         if [ -f "${BUILT_DLL}" ]; then
+#             cp "${BUILT_DLL}" "${OUTPUT_DIR}/lib.dll" || fail "Failed to copy built .NET library"
+#             echo ".NET library copied to ${OUTPUT_DIR}/lib.dll"
+#         else
+#             echo "Warning: .NET library not found at ${BUILT_DLL}"
+#             echo "Searching for available DLLs..."
+#             find ${SCRIPT_DIR}/src/dotnet/bin -name "*.dll" -type f || true
+#         fi
+#     else
+#         fail "Failed to find zisklib project"
+#     fi
+# }
 
-function copy_manifest() {
-    # Copy manifest
-    echo "Copying bflat-manifest.json..."
-    if [ -f "${SCRIPT_DIR}/bflat-manifest.json" ]; then
-        cp "${SCRIPT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/" || fail "Failed to copy bflat-manifest.json"
-        echo "Manifest copied to ${OUTPUT_DIR}/bflat-manifest.json"
-    fi
-}
+# function copy_manifest() {
+#     # Copy manifest
+#     echo "Copying bflat-manifest.json..."
+#     if [ -f "${SCRIPT_DIR}/bflat-manifest.json" ]; then
+#         cp "${SCRIPT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/" || fail "Failed to copy bflat-manifest.json"
+#         echo "Manifest copied to ${OUTPUT_DIR}/bflat-manifest.json"
+#     fi
+# }

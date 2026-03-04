@@ -1,0 +1,73 @@
+name: Publish NuGet package
+
+on:
+  pull_request:
+  push:
+    branches: [main, feature/package] # To be removed when merged
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to NuGet
+        default: None
+        type: choice
+        options:
+          - 'No'
+          - Staging
+          - Production
+      zisk_ref:
+        description: Zisk ref
+        required: true
+        default: pre-develop-0.16.0
+
+jobs:
+  build-ziskos:
+    name: Build ZiskOS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build static library
+        env:
+          ZISK_TAG: ${{ github.event.inputs.zisk_ref }}
+        run: ./build.sh
+
+      - name: Upload static library
+        uses: actions/upload-artifact@v4
+        with:
+          name: libziskos
+          path: output/libziskos.a
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: build-ziskos
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No' || github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+
+      - name: Download static library
+        uses: actions/download-artifact@v4
+
+      - name: Move static library to bindings
+        run: |
+          mkdir -p src/bindings/Nethermind.ZiskBindings/runtimes/linux-x64/native
+          mv libziskos.a src/bindings/Nethermind.ZiskBindings/runtimes/linux-x64/native/
+
+      - name: Publish
+        working-directory: src/bindings
+        run: |
+          dotnet pack ./Nethermind.ZiskBindings -c release
+          dotnet nuget push ./artifacts/package/release/*.nupkg \
+            -k ${{ github.event.inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
+            -s ${{ github.event.inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
