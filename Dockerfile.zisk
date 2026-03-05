@@ -1,6 +1,6 @@
 FROM rust:latest
 
-COPY zisk/bin/ /root/.zisk/bin/
+COPY --chmod=0755 zisk/bin/ /root/.zisk/bin/
 COPY zisk/zisk/ /root/.zisk/zisk/
 
 ENV PATH="/root/.zisk/bin:${PATH}"
