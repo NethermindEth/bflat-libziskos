@@ -2,7 +2,7 @@ name: Publish ZisK Docker image
 
 on:
   push:
-    branches: [feature/package] # To be removed when merged
+    branches: [main] # To be removed when merged
   workflow_dispatch:
     inputs:
       zisk_ref:
