@@ -27,14 +27,7 @@ public static unsafe class IO
         if ((uint)id >= 64U)
             Environment.FailFast("Output id must be between 0 and 63");
 
-        uint index = (uint)id + 1U;
-
-        Output[index] = value;
-
-        uint count = Output[0];
-
-        if (count < index)
-            Output[0] = index;
+        Output[(uint)id] = value;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
