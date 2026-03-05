@@ -28,12 +28,12 @@ jobs:
     env:
       TARGET: riscv64ima-zisk-zkvm-elf
     steps:
-      - name: Check out repository
+      - name: Check out bflat-ziskos repository
         uses: actions/checkout@v6
         with:
-          path: n
+          path: b
 
-      - name: Check out ZisK repository
+      - name: Check out zisk repository
         uses: actions/checkout@v6
         with:
           repository: 0xPolygonHermez/zisk
@@ -82,9 +82,9 @@ jobs:
       - name: Build ziskos static library
         working-directory: z
         run: |
-          git apply ../n/cargo.toml.patch
-          git apply ../n/entrypoint-no-entrypoint.patch
-          cargo +zisk build -p ziskos --release --target "${TARGET}" --features no_entrypoint
+          git apply ../b/cargo.toml.patch
+          git apply ../b/entrypoint-no-entrypoint.patch
+          cargo +zisk build -p ziskos --release --target $TARGET --features no_entrypoint
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
