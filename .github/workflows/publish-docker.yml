@@ -97,6 +97,7 @@ jobs:
       - name: Publish to Docker Hub
         run: |
           docker buildx build . \
+            -f Dockerfile.zisk \
             -t nethermindeth/zisk:latest \
             -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }} \
             --push
