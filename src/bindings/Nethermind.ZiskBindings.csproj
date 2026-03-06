@@ -25,7 +25,10 @@
 
   <ItemGroup>
     <None Update="runtimes/linux-riscv64/native/libziskos.a">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
+    </None>
+    <None Update="runtimes/linux-riscv64/native/libziskos.bflat.manifest">
       <Pack>true</Pack>
       <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
     </None>
