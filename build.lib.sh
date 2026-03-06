@@ -152,11 +152,11 @@ function build_syscalls() {
 #     fi
 # }
 
-# function copy_manifest() {
-#     # Copy manifest
-#     echo "Copying bflat-manifest.json..."
-#     if [ -f "${SCRIPT_DIR}/bflat-manifest.json" ]; then
-#         cp "${SCRIPT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/" || fail "Failed to copy bflat-manifest.json"
-#         echo "Manifest copied to ${OUTPUT_DIR}/bflat-manifest.json"
-#     fi
-# }
+function copy_manifest() {
+    # Copy manifest
+    echo "Copying bflat-manifest.json..."
+    if [ -f "${SCRIPT_DIR}/bflat-manifest.json" ]; then
+        cp "${SCRIPT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/" || fail "Failed to copy bflat-manifest.json"
+        echo "Manifest copied to ${OUTPUT_DIR}/bflat-manifest.json"
+    fi
+}

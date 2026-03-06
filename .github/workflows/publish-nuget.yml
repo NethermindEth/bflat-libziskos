@@ -25,28 +25,30 @@ jobs:
   build-ziskos:
     name: Build ziskos
     runs-on: ubuntu-latest
-    env:
-      TARGET: riscv64ima-zisk-zkvm-elf
+    # env:
+    #   TARGET: riscv64ima-zisk-zkvm-elf
     steps:
       - name: Check out bflat-ziskos repository
         uses: actions/checkout@v6
-        with:
-          path: b
+        # with:
+        #   path: b
 
-      - name: Check out zisk repository
-        uses: actions/checkout@v6
-        with:
-          repository: 0xPolygonHermez/zisk
-          ref: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }} # To be removed when merged
-          path: z
+      # - name: Check out zisk repository
+      #   uses: actions/checkout@v6
+      #   with:
+      #     repository: 0xPolygonHermez/zisk
+      #     ref: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }} # To be removed when merged
+      #     path: z
 
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # - name: Build static library
-      #   env:
-      #     ZISK_TAG: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }} # To be removed when merged
-      #   run: ./build.sh
+      - name: Build static library
+        env:
+          ZISK_TAG: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }} # To be removed when merged
+        run: |
+          ./build.sh
+          mv output/bflat-manifest.json output/libziskos.bflat.manifest
 
       # - name: Upload static library
       #   uses: actions/upload-artifact@v4
@@ -55,42 +57,45 @@ jobs:
       #     path: output/libziskos.a
       #     if-no-files-found: error
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
+      # - name: Install Rust toolchain
+      #   run: |
+      #     rustup toolchain install stable --profile minimal
+      #     rustup default stable
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            gcc-riscv64-unknown-elf \
-            libomp-dev \
-            libopenmpi-dev \
-            libsodium-dev \
-            nasm \
-            nlohmann-json3-dev
+      # - name: Install dependencies
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y --no-install-recommends \
+      #       gcc-riscv64-unknown-elf \
+      #       libomp-dev \
+      #       libopenmpi-dev \
+      #       libsodium-dev \
+      #       nasm \
+      #       nlohmann-json3-dev
 
-      - name: Build cargo-zisk
-        working-directory: z
-        run: cargo build -p cargo-zisk --release
+      # - name: Build cargo-zisk
+      #   working-directory: z
+      #   run: cargo build -p cargo-zisk --release
 
-      - name: Install ZisK toolchain
-        working-directory: z
-        run: ./target/release/cargo-zisk sdk install-toolchain
+      # - name: Install ZisK toolchain
+      #   working-directory: z
+      #   run: ./target/release/cargo-zisk sdk install-toolchain
 
-      - name: Build ziskos static library
-        working-directory: z
-        run: |
-          git apply ../b/cargo.toml.patch
-          git apply ../b/entrypoint-no-entrypoint.patch
-          cargo +zisk build -p ziskos --release --target $TARGET --features no_entrypoint
+      # - name: Build ziskos static library
+      #   working-directory: z
+      #   run: |
+      #     git apply ../b/cargo.toml.patch
+      #     git apply ../b/entrypoint-no-entrypoint.patch
+      #     cargo +zisk build -p ziskos --release --target $TARGET --features no_entrypoint
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: libziskos
-          path: z/target/${{ env.TARGET }}/release/libziskos.a
+          path: |
+            output/libziskos.a
+            output/libziskos.bflat.manifest
+          if-no-files-found: error
 
   publish:
     name: Publish
@@ -109,10 +114,11 @@ jobs:
         with:
           name: libziskos
 
-      - name: Move static library to bindings
+      - name: Move artifacts to bindings
         run: |
           mkdir -p src/bindings/runtimes/linux-riscv64/native
           mv libziskos.a src/bindings/runtimes/linux-riscv64/native/
+          mv libziskos.bflat.manifest src/bindings/runtimes/linux-riscv64/native/
 
       - name: Publish
         working-directory: src/bindings
