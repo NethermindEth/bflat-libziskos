@@ -20,8 +20,20 @@ on:
         description: Zisk ref
         required: true
         default: pre-develop-0.16.0
+      build_docker:
+        description: Build ZisK Docker image
+        type: boolean
+        default: false
 
 jobs:
+  build-docker:
+    name: Build ZisK Docker image
+    if: inputs.build_docker
+    uses: ./.github/workflows/publish-docker.yml
+    with:
+      zisk_ref: ${{ inputs.zisk_ref }}
+    secrets: inherit
+
   build-ziskos:
     name: Build ziskos
     runs-on: ubuntu-latest

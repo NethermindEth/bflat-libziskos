@@ -9,6 +9,13 @@ on:
         description: Zisk ref
         required: true
         default: pre-develop-0.16.0
+  workflow_call:
+    inputs:
+      zisk_ref:
+        description: Zisk ref
+        required: true
+        type: string
+        default: pre-develop-0.16.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 0xPolygonHermez/zisk
-          ref: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }} # To be removed when merged
+          ref: ${{ inputs.zisk_ref }}
 
       - name: Install Rust toolchain
         run: |
