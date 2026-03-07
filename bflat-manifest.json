@@ -6,8 +6,8 @@
       "arch": "riscv64",
       "os": "linux",
       "libc": "zisk",
-      "static_lib": "libziskos.a",
-      "dotnet_lib": "Nethermind.ZiskBindings.dll",
+      "static_lib": "runtimes/linux-riscv64/native/libziskos.a",
+      "dotnet_lib": "lib/net10.0/Nethermind.ZiskBindings.dll",
       "dotnet_assemblyname": "Nethermind.ZiskBindings"
     }
   ]
