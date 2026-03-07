@@ -90,6 +90,15 @@ jobs:
         working-directory: src/bindings
         run: dotnet pack Nethermind.ZiskBindings.csproj -c release
 
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: |
+            src/bindings/artifacts/package/release/*.nupkg
+            src/bindings/artifacts/package/release/*.snupkg
+          if-no-files-found: error
+
       - name: Get package version
         id: pkg
         working-directory: src/bindings
