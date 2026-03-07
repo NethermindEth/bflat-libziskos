@@ -9,6 +9,8 @@ function prepare_repo() {
     # Clone the repository
     echo "Cloning zisk repository (tag: ${ZISK_TAG})..."
     git clone --depth 1 --branch "${ZISK_TAG}" "${ZISK_REPO}" "${TMP_DIR}/zisk" || fail "Failed to clone zisk repository"
+    ZISK_COMMIT=$(git -C "${TMP_DIR}/zisk" rev-parse HEAD)
+    echo "Zisk commit: ${ZISK_COMMIT}"
 
     # Apply patch
     echo "Applying crate type patch..."
@@ -157,6 +159,14 @@ function copy_manifest() {
     echo "Copying bflat-manifest.json..."
     if [ -f "${SCRIPT_DIR}/bflat-manifest.json" ]; then
         cp "${SCRIPT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/" || fail "Failed to copy bflat-manifest.json"
-        echo "Manifest copied to ${OUTPUT_DIR}/bflat-manifest.json"
+
+        if [ -n "${ZISK_COMMIT}" ] && command -v jq &>/dev/null; then
+            jq --arg hash "${ZISK_COMMIT}" '. + {zisk_ref_hash: $hash}' \
+                "${OUTPUT_DIR}/bflat-manifest.json" > "${OUTPUT_DIR}/bflat-manifest.json.tmp" \
+                && mv "${OUTPUT_DIR}/bflat-manifest.json.tmp" "${OUTPUT_DIR}/bflat-manifest.json"
+            echo "Injected zisk_ref_hash: ${ZISK_COMMIT}"
+        fi
+
+        echo "Manifest at ${OUTPUT_DIR}/bflat-manifest.json"
     fi
 }
