@@ -1,70 +1,14 @@
-//
-// Copyright (C) 2025-2026 Demerzel Solutions Limited (Nethermind)
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-//
+// SPDX-FileCopyrightText: 2026 Demerzel Solutions Limited
+// SPDX-License-Identifier: LGPL-3.0-only
 
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-//
-// This is precompile support for the ZisK-flavor of bflat.
-// ZisK syscalls are implemented in the assembly. The direct P/Invoke is implemented here, in the managed code,
-// and then bflat has a special P/Invoke policy to link these functions without using the dynamic loader.
-//
-// Example of using precompiles in the client code:
-//
-//  using System;
-//
-//  public static unsafe void Example_Arith256()
-//  {
-//      ulong* a = stackalloc ulong[4];
-//      ulong* b = stackalloc ulong[4];
-//      ulong* c = stackalloc ulong[4];
-//      ulong* dl = stackalloc ulong[4];
-//      ulong* dh = stackalloc ulong[4];
-//
-//      a[0] = 3; a[1] = a[2] = a[3] = 0;
-//      b[0] = 7; b[1] = b[2] = b[3] = 0;
-//      c[0] = 5; c[1] = c[2] = c[3] = 0;
-//
-//      var p = new System.ZisKPrecompile.SyscallArith256Params
-//      {
-//          a = a,
-//          b = b,
-//          c = c,
-//          dl = dl,
-//          dh = dh
-//      };
-//
-//      System.ZisKPrecompile.Arith256(ref p);
-//
-//      bool isCorrect =
-//          dh[0] == 0 && dh[1] == 0 && dh[2] == 0 && dh[3] == 0 &&
-//          dl[0] == 26 && dl[1] == 0 && dl[2] == 0 && dl[3] == 0;
-//
-//      if (!isCorrect)
-//      {
-//          throw new System.Exception("Arith256 result is incorrect.");
-//      }
-//  }
-//
-namespace System
+namespace Nethermind.ZiskBindings;
+
+/// Implementation of ZisK precompiles
+public static unsafe partial class Precompile
 {
-    /// Implementation of ZisK precompiles
-    public static unsafe partial class ZisKPrecompile
-    {
         // The precompile stubs are expected to be linked into the main image, other variants
         // will never work in NativeAOT for Nethermind binaries.
         private const string NativeLibraryName = "__Internal";
@@ -415,5 +359,4 @@ namespace System
             fixed (SyscallBls12_381ComplexMulParams* pp = &p)
                 zkvm_bls12_381_complex_mul(pp);
         }
-    }
 }
