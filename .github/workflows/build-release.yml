@@ -26,7 +26,7 @@ jobs:
     name: Build ziskos
     runs-on: ubuntu-latest
     steps:
-      - name: Check out bflat-ziskos repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -46,12 +46,12 @@ jobs:
             output/libziskos.bflat.manifest
           if-no-files-found: error
 
-  publish:
-    name: Publish
+  build-nupkg:
+    name: Build nupkg
     needs: build-ziskos
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      version: ${{ steps.pkg.outputs.version }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Download static library
+      - name: Download libziskos artifact
         uses: actions/download-artifact@v4
         with:
           name: libziskos
@@ -90,6 +90,14 @@ jobs:
         working-directory: src/bindings
         run: dotnet pack Nethermind.ZiskBindings.csproj -c release
 
+      - name: Get package version
+        id: pkg
+        working-directory: src/bindings
+        run: |
+          PKG=$(ls ./artifacts/package/release/*.nupkg | head -1)
+          VERSION=$(basename "$PKG" .nupkg | sed 's/^Nethermind\.ZiskBindings\.//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Upload nupkg artifact
         uses: actions/upload-artifact@v4
         with:
@@ -99,39 +107,67 @@ jobs:
             src/bindings/artifacts/package/release/*.snupkg
           if-no-files-found: error
 
-      - name: Get package version
-        id: pkg
-        working-directory: src/bindings
-        run: |
-          PKG=$(ls ./artifacts/package/release/*.nupkg | head -1)
-          VERSION=$(basename "$PKG" .nupkg | sed 's/^Nethermind\.ZiskBindings\.//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+  publish-nupkg-nuget:
+    name: Publish to NuGet
+    needs: build-nupkg
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No') || github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Download nupkg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg
+          path: nupkg
 
       - name: Push to NuGet
-        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No') || github.event_name == 'release'
-        working-directory: src/bindings
         run: |
-          dotnet nuget push ./artifacts/package/release/*.nupkg \
+          dotnet nuget push ./nupkg/*.nupkg \
             -k ${{ github.event.inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
             -s ${{ github.event.inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
 
+  publish-nupkg-github:
+    name: Publish to GitHub
+    needs: build-nupkg
+    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No') || github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download nupkg artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg
+          path: nupkg
+
+      - name: Download libziskos artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: libziskos
+          path: libziskos
+
       - name: Create GitHub Release
-        if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No') || github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.pkg.outputs.version }}
-          name: Nethermind.ZiskBindings ${{ steps.pkg.outputs.version }}
+          tag_name: v${{ needs.build-nupkg.outputs.version }}
+          name: Nethermind.ZiskBindings ${{ needs.build-nupkg.outputs.version }}
           files: |
-            src/bindings/artifacts/package/release/*.nupkg
-            src/bindings/artifacts/package/release/*.snupkg
+            nupkg/*.nupkg
+            nupkg/*.snupkg
+            libziskos/libziskos.a
+            libziskos/libziskos.bflat.manifest
           body: |
             NuGet package for ZisK C# bindings.
 
             **Package**: `Nethermind.ZiskBindings`
-            **Version**: `${{ steps.pkg.outputs.version }}`
+            **Version**: `${{ needs.build-nupkg.outputs.version }}`
 
             Built from zisk repository ref: `${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }}`
           draft: false
-          prerelease: ${{ contains(steps.pkg.outputs.version, '-') }}
+          prerelease: ${{ contains(needs.build-nupkg.outputs.version, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
