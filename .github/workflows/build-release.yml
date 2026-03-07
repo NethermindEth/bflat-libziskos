@@ -26,12 +26,30 @@ on:
         default: false
 
 jobs:
+  get-version:
+    name: Get bindings version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: ver
+        run: |
+          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
+          SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
+          echo "version=$PREFIX${SUFFIX:+-$SUFFIX}" >> $GITHUB_OUTPUT
+
   build-docker:
     name: Build ZisK Docker image
+    needs: get-version
     if: inputs.build_docker
     uses: ./.github/workflows/publish-docker.yml
     with:
       zisk_ref: ${{ inputs.zisk_ref }}
+      bindings_version: ${{ needs.get-version.outputs.version }}
     secrets: inherit
 
   build-ziskos:

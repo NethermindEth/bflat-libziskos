@@ -16,6 +16,11 @@ on:
         required: true
         type: string
         default: pre-develop-0.16.0
+      bindings_version:
+        description: Bindings version tag (e.g. 1.0.0-preview.4)
+        required: false
+        type: string
+        default: ""
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -102,9 +107,16 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
       - name: Publish to Docker Hub
+        env:
+          BINDINGS_VERSION: ${{ inputs.bindings_version }}
         run: |
+          EXTRA_TAG=""
+          if [ -n "$BINDINGS_VERSION" ]; then
+            EXTRA_TAG="-t nethermindeth/zisk:$BINDINGS_VERSION"
+          fi
           docker buildx build . \
             -f Dockerfile.zisk \
             -t nethermindeth/zisk:latest \
             -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }} \
+            $EXTRA_TAG \
             --push
