@@ -3,7 +3,7 @@ name: Build and Release NuGet package
 on:
   pull_request:
   push:
-    branches: [main, feature/package] # To be removed when merged
+    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
