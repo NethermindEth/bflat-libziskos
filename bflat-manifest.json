@@ -8,7 +8,7 @@
       "libc": "zisk",
       "static_lib": "libziskos.a",
       "dotnet_lib": "Nethermind.ZiskBindings.dll",
-      "dotnet_assemblyname": "zisklib"
+      "dotnet_assemblyname": "Nethermind.ZiskBindings"
     }
   ]
 }
