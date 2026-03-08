@@ -50,6 +50,8 @@ jobs:
     name: Build NuGet package
     needs: build-ziskos
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.pkg.outputs.version }}
     steps:
