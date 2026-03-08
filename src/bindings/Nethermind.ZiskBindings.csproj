@@ -36,7 +36,7 @@
       <Pack>true</Pack>
       <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
       <BuildAction>None</BuildAction>
-      <CopyToOutput>true</CopyToOutput>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
