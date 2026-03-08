@@ -32,9 +32,11 @@
       <Pack>true</Pack>
       <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
     </None>
-    <None Update="libziskos.bflat.manifest">
+    <None Update="content/libziskos.bflat.manifest">
       <Pack>true</Pack>
-      <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
+      <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
+      <BuildAction>None</BuildAction>
+      <CopyToOutput>true</CopyToOutput>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
