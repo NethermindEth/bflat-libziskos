@@ -99,8 +99,9 @@ jobs:
       - name: Move artifacts to bindings
         run: |
           mkdir -p src/bindings/runtimes/linux-riscv64/native
+          mkdir -p src/bindings/content
           mv libziskos.a src/bindings/runtimes/linux-riscv64/native/
-          mv libziskos.bflat.manifest src/bindings/
+          mv libziskos.bflat.manifest src/bindings/content/
 
       - name: Inject zisk_ref and package_version into manifest
         env:
