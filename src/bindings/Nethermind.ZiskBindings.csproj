@@ -2,14 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>false</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Nethermind.ZiskBindings</RootNamespace>
-    <DefineConstants>$(DefineConstants);LINUX;RISCV64</DefineConstants>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IsAotCompatible>true</IsAotCompatible>
-    <RuntimeIdentifier>linux-riscv64</RuntimeIdentifier>
+    <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
   </PropertyGroup>
 
   <PropertyGroup>
