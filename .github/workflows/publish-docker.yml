@@ -104,5 +104,5 @@ jobs:
           docker buildx build . \
             -f Dockerfile.zisk \
             -t nethermindeth/zisk:latest \
-            -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }}
+            -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }} \
             --push
