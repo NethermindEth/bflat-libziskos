@@ -111,7 +111,7 @@ jobs:
           SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
           VERSION="$PREFIX${SUFFIX:+-$SUFFIX}"
 
-          MANIFEST=src/bindings/libziskos.bflat.manifest
+          MANIFEST=src/bindings/content/libziskos.bflat.manifest
           jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
             '. + {zisk_ref: $ref, package_version: $version}' \
             "$MANIFEST" > "$MANIFEST.tmp"
