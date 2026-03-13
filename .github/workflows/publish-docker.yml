@@ -1,14 +1,6 @@
 name: Publish ZisK Docker image
 
 on:
-  push:
-    branches: [main] # To be removed when merged
-  workflow_dispatch:
-    inputs:
-      zisk_ref:
-        description: Zisk ref
-        required: true
-        default: pre-develop-0.16.0
   workflow_call:
     inputs:
       zisk_ref:
@@ -16,11 +8,13 @@ on:
         required: true
         type: string
         default: pre-develop-0.16.0
-      bindings_version:
-        description: Bindings version tag (e.g. 1.0.0-preview.4)
-        required: false
+  workflow_dispatch:
+    inputs:
+      zisk_ref:
+        description: Zisk ref
+        required: true
         type: string
-        default: ""
+        default: pre-develop-0.16.0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -71,8 +65,7 @@ jobs:
           cp -r ./lib-c/ zisk-dist/zisk
           cp ./emulator-asm/Makefile zisk-dist/zisk/emulator-asm
 
-          zisk_commit=$(git rev-parse HEAD)
-          echo "commit-hash=$zisk_commit" >> $GITHUB_OUTPUT
+          echo "commit-hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -107,16 +100,9 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
       - name: Publish to Docker Hub
-        env:
-          BINDINGS_VERSION: ${{ inputs.bindings_version }}
         run: |
-          EXTRA_TAG=""
-          if [ -n "$BINDINGS_VERSION" ]; then
-            EXTRA_TAG="-t nethermindeth/zisk:$BINDINGS_VERSION"
-          fi
           docker buildx build . \
             -f Dockerfile.zisk \
             -t nethermindeth/zisk:latest \
             -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }} \
-            $EXTRA_TAG \
             --push

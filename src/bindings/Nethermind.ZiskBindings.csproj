@@ -2,14 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>false</ImplicitUsings>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Nethermind.ZiskBindings</RootNamespace>
-    <DefineConstants>$(DefineConstants);LINUX;RISCV64</DefineConstants>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IsAotCompatible>true</IsAotCompatible>
-    <RuntimeIdentifier>linux-riscv64</RuntimeIdentifier>
     <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
   </PropertyGroup>
 
@@ -33,11 +30,9 @@
       <Pack>true</Pack>
       <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
     </None>
-    <None Update="content/libziskos.bflat.manifest">
+    <None Update="runtimes/linux-riscv64/native/libziskos.bflat.manifest">
       <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
-      <BuildAction>None</BuildAction>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>

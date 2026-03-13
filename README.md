@@ -39,22 +39,26 @@ Use bflat's ability to link to external libraries and provide the link to this r
 ### Build Instructions
 
 1. Clone this repository:
+
 ```bash
 git clone https://github.com/nethermindeth/bflat-libziskos.git
 cd bflat-libziskos
 ```
 
 2. Set the zisk version tag you want to build:
+
 ```bash
-export ZISK_TAG=pre-develop-0.16.0
+export ZISK_REF=pre-develop-0.16.0
 ```
 
 3. Run the build script:
+
 ```bash
 ./build.sh
 ```
 
 4. Find the built libraries in the `output/` directory:
+
 ```bash
 ls -lh output/
 ```
@@ -73,6 +77,7 @@ The build process:
 6. **Builds .NET library** if the project exists in the zisk repository
 
 The final `lib.a` contains:
+
 - ziskos core functionality (precompiles, runtime)
 - Direct system call wrappers for zkVM syscalls
 
