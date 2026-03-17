@@ -29,17 +29,112 @@
  
      #[no_mangle]
      pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
-@@ -282,9 +290,12 @@ mod ziskos {
-
-         ptr
-     }
-+    #[cfg(not(feature = "no_entrypoint"))]
-     core::arch::global_asm!(include_str!("dma/memcpy.s"));
-+    #[cfg(not(feature = "no_entrypoint"))]
-     core::arch::global_asm!(include_str!("dma/memmove.s"));
-+    #[cfg(not(feature = "no_entrypoint"))]
-     core::arch::global_asm!(include_str!("dma/memcmp.s"));
--    //core::arch::global_asm!(include_str!("dma/inputcpy.s"));
-+    #[cfg(not(feature = "no_entrypoint"))]
-     core::arch::global_asm!(include_str!("dma/memset.s"));
- }
+diff --git a/ziskos/entrypoint/src/dma/memcmp.s b/ziskos/entrypoint/src/dma/memcmp.s
+index 2e6835d..9a3ce62 100644
+--- a/ziskos/entrypoint/src/dma/memcmp.s
++++ b/ziskos/entrypoint/src/dma/memcmp.s
+@@ -2,13 +2,13 @@
+         .text
+         .attribute      4, 16
+         .attribute      5, "rv64im"
+-        .globl  memcmp
++        .globl  __wrap_memcmp
+         .p2align        4
+-        .type   memcmp,@function
+-memcmp:
++        .type   __wrap_memcmp,@function
++__wrap_memcmp:
+         csrs    0x814, a1  # Marker: Write count (a2) to CSR 0x814
+-        add   a0,a0,a2        
++        add   a0,a0,a2
+         ret
+-               
+-        .size memcmp, .-memcmp
++
++        .size __wrap_memcmp, .-__wrap_memcmp
+         .section .text.hot,"ax",@progbits
+\ No newline at end of file
+diff --git a/ziskos/entrypoint/src/dma/memcpy.s b/ziskos/entrypoint/src/dma/memcpy.s
+index a087f7d..216f3ca 100644
+--- a/ziskos/entrypoint/src/dma/memcpy.s
++++ b/ziskos/entrypoint/src/dma/memcpy.s
+@@ -2,13 +2,13 @@
+         .text
+         .attribute      4, 16
+         .attribute      5, "rv64im"
+-        .globl  memcpy
++        .globl  __wrap_memcpy
+         .p2align        4
+-        .type   memcpy,@function
+-memcpy:
++        .type   __wrap_memcpy,@function
++__wrap_memcpy:
+         csrs    0x813, a1                  # Marker: Write count (a2) to CSR 0x813
+         add   x0,a0,a2
+         ret
+ 
+-        .size memcpy, .-memcpy
++        .size __wrap_memcpy, .-__wrap_memcpy
+         .section .text.hot,"ax",@progbits
+\ No newline at end of file
+diff --git a/ziskos/entrypoint/src/dma/memmove.s b/ziskos/entrypoint/src/dma/memmove.s
+index af3655c..780bb5a 100644
+--- a/ziskos/entrypoint/src/dma/memmove.s
++++ b/ziskos/entrypoint/src/dma/memmove.s
+@@ -2,12 +2,12 @@
+         .text
+         .attribute      4, 16
+         .attribute      5, "rv64im"
+-        .globl  memmove
++        .globl  __wrap_memmove
+         .p2align        4
+-        .type   memmove,@function
+-memmove:
++        .type   __wrap_memmove,@function
++__wrap_memmove:
+         csrs    0x813, a1                  # Marker: Write count (a2) to CSR 0x813
+         add   x0,a0,a2
+-        ret        
+-        .size memmove, .-memmove
++        ret
++        .size __wrap_memmove, .-__wrap_memmove
+         .section .text.hot,"ax",@progbits
+\ No newline at end of file
+diff --git a/ziskos/entrypoint/src/dma/memset.s b/ziskos/entrypoint/src/dma/memset.s
+index fc70bad..a93ecf8 100644
+--- a/ziskos/entrypoint/src/dma/memset.s
++++ b/ziskos/entrypoint/src/dma/memset.s
+@@ -2,20 +2,20 @@
+         .text
+         .attribute      4, 16
+         .attribute      5, "rv64im"
+-        .globl  memset
++        .globl  __wrap_memset
+         .p2align        4
+-        .type   memset,@function
++        .type   __wrap_memset,@function
+ # memset(void *s, int c, size_t n)
+ # a0 = destination pointer (s)
+-# a1 = fill value (c) 
++# a1 = fill value (c)
+ # a2 = byte count (n)
+-memset:
++__wrap_memset:
+         bnez    a1, .L_memset_non_zero
+         csrs    0x816, a0
+         addi    x0, a2, 0
+         ret
+ 
+-.L_memset_non_zero: 
++.L_memset_non_zero:
+         andi    a1, a1, 0xff            # Mask to byte value
+         slli    a1, a1, 4
+         la      t0, .Ljump_table
+@@ -53,5 +53,5 @@ memset:
+         csrs 0x816, a0; addi x0, a2, \val; ret; nop
+ .endr
+ 
+-        .size memset, .-memset
++        .size __wrap_memset, .-__wrap_memset
+         .section .text.hot,"ax",@progbits
+\ No newline at end of file
