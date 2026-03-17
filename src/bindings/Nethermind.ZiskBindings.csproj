@@ -35,8 +35,10 @@
     <None Update="content/libziskos.bflat.manifest">
       <Pack>true</Pack>
       <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
-      <BuildAction>None</BuildAction>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
+    </None>
+    <None Update="Nethermind.ZiskBindings.targets">
+      <Pack>true</Pack>
+      <PackagePath>build/%(Filename)%(Extension)</PackagePath>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
