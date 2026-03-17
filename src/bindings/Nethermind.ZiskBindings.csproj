@@ -9,7 +9,6 @@
     <DefineConstants>$(DefineConstants);LINUX;RISCV64</DefineConstants>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IsAotCompatible>true</IsAotCompatible>
-    <RuntimeIdentifier>linux-riscv64</RuntimeIdentifier>
     <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
   </PropertyGroup>
 
