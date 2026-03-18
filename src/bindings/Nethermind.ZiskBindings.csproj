@@ -30,9 +30,13 @@
       <Pack>true</Pack>
       <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
     </None>
-    <None Update="runtimes/linux-riscv64/native/libziskos.bflat.manifest">
+    <None Update="libziskos.bflat.manifest">
       <Pack>true</Pack>
-      <PackagePath>%(RelativeDir)%(Filename)%(Extension)</PackagePath>
+      <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
+    </None>
+    <None Update="Nethermind.ZiskBindings.targets">
+      <Pack>true</Pack>
+      <PackagePath>build/%(Filename)%(Extension)</PackagePath>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>

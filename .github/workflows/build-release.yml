@@ -70,7 +70,7 @@ jobs:
         run: |
           mkdir -p src/bindings/runtimes/linux-riscv64/native
           mv libziskos.a src/bindings/runtimes/linux-riscv64/native/
-          mv libziskos.bflat.manifest src/bindings/runtimes/linux-riscv64/native/
+          mv libziskos.bflat.manifest src/bindings/
 
       - name: Inject zisk_ref and package_version into manifest
         run: |
@@ -78,7 +78,7 @@ jobs:
           SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
           VERSION="$PREFIX${SUFFIX:+-$SUFFIX}"
 
-          MANIFEST=src/bindings/runtimes/linux-riscv64/native/libziskos.bflat.manifest
+          MANIFEST=src/bindings/libziskos.bflat.manifest
           jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
             '. + {zisk_ref: $ref, package_version: $version}' \
             "$MANIFEST" > "$MANIFEST.tmp"

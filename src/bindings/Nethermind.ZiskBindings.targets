@@ -1,0 +1,9 @@
+<Project>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../contentFiles/any/any/libziskos.bflat.manifest">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>libziskos.bflat.manifest</Link>
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+</Project>
