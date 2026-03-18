@@ -60,7 +60,7 @@ function build_in_docker() {
 
             echo 'Applying patches for no_entrypoint feature...'
             # Apply patch to wrap _start, _zisk_main, memcpy, memmove and replace sys_alloc_aligned
-            patch -p1 < /workspace/entrypoint.patch || exit 1
+            patch -p1 -l < /workspace/entrypoint.patch || exit 1
 
             cd ziskos/entrypoint
 
