@@ -1,8 +1,6 @@
-diff --git a/ziskos/entrypoint/src/lib.rs b/ziskos/entrypoint/src/lib.rs
-index c5a434091..2b0d25ff9 100644
 --- a/ziskos/entrypoint/src/lib.rs
 +++ b/ziskos/entrypoint/src/lib.rs
-@@ -227,6 +227,7 @@ pub mod ziskos {
+@@ -110,6 +110,7 @@ mod ziskos {
      use crate::ziskos_definitions::ziskos_config::*;
      use core::arch::asm;
 
@@ -10,7 +8,7 @@ index c5a434091..2b0d25ff9 100644
      #[no_mangle]
      #[link_section = ".text.init"]
      unsafe extern "C" fn _start() -> ! {
-@@ -277,6 +278,7 @@ pub mod ziskos {
+@@ -163,6 +164,7 @@ mod ziskos {
          getrandom::register_custom_getrandom!(zkvm_getrandom);
      }
 
@@ -18,10 +16,11 @@ index c5a434091..2b0d25ff9 100644
      #[no_mangle]
      unsafe extern "C" fn _zisk_main() {
          {
-@@ -368,6 +370,12 @@ pub mod ziskos {
+@@ -236,6 +238,12 @@ mod ziskos {
+     extern "C" fn sys_argv() {
          unimplemented!("sys_argv");
      }
-
++
 +    #[no_mangle]
 +    extern "C" fn sys_panic(_msg_ptr: *const u8, _msg_len: usize) -> ! {
 +        // Empty implementation - panic handling is done by bflat runtime
