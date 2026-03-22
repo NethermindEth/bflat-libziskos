@@ -30,7 +30,7 @@ cleanup
 prepare_repo
 build_docker_image
 build_in_docker
-# build_syscalls
+build_syscalls
 copy_manifest
 
 echo "Build completed"
