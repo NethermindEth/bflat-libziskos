@@ -48,7 +48,7 @@ cd bflat-libziskos
 2. Set the zisk version tag you want to build:
 
 ```bash
-export ZISK_REF=pre-develop-0.16.0
+export ZISK_REF=v0.16.1
 ```
 
 3. Run the build script:

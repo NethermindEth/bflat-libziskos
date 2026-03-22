@@ -14,7 +14,7 @@ on:
       zisk_ref:
         description: Zisk ref
         type: string
-        default: v0.16.0
+        default: v0.16.1
       build_docker:
         description: Build ZisK Docker image
         type: boolean
@@ -46,7 +46,7 @@ jobs:
             output/libziskos.bflat.manifest
           if-no-files-found: error
 
-  build-nuget:
+  build-nupkg:
     name: Build NuGet package
     needs: build-ziskos
     runs-on: ubuntu-latest
@@ -114,7 +114,7 @@ jobs:
   publish-docker:
     name: Publish ZisK Docker image
     if: inputs.build_docker
-    needs: build-nuget
+    needs: build-nupkg
     uses: ./.github/workflows/publish-docker.yml
     with:
       zisk_ref: ${{ inputs.zisk_ref }}
@@ -123,7 +123,7 @@ jobs:
   publish-nupkg-github:
     name: Publish to GitHub
     if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
-    needs: build-nuget
+    needs: build-nupkg
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -143,8 +143,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.build-nuget.outputs.version }}
-          name: Nethermind.ZiskBindings ${{ needs.build-nuget.outputs.version }}
+          tag_name: v${{ needs.build-nupkg.outputs.version }}
+          name: Nethermind.ZiskBindings ${{ needs.build-nupkg.outputs.version }}
           files: |
             nupkg/*.nupkg
             nupkg/*.snupkg
@@ -154,10 +154,10 @@ jobs:
             NuGet package for ZisK C# bindings.
 
             **Package**: `Nethermind.ZiskBindings`
-            **Version**: `${{ needs.build-nuget.outputs.version }}`
+            **Version**: `${{ needs.build-nupkg.outputs.version }}`
 
             Built from zisk repository ref: `${{ env.ZISK_REF }}`
           draft: false
-          prerelease: ${{ contains(needs.build-nuget.outputs.version, '-') }}
+          prerelease: ${{ contains(needs.build-nupkg.outputs.version, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

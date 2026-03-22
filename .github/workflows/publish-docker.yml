@@ -7,14 +7,14 @@ on:
         description: Zisk ref
         required: true
         type: string
-        default: v0.16.0
+        default: v0.16.1
   workflow_dispatch:
     inputs:
       zisk_ref:
         description: Zisk ref
         required: true
         type: string
-        default: v0.16.0
+        default: v0.16.1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
