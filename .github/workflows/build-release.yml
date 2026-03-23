@@ -1,11 +1,6 @@
-name: Build and Release NuGet package
+name: Build and publish NuGet package
 
 on:
-  pull_request:
-  push:
-    branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       publish:
@@ -18,54 +13,29 @@ on:
           - Production
       zisk_ref:
         description: Zisk ref
-        required: true
-        default: pre-develop-0.16.0
+        type: string
+        default: v0.16.1
       build_docker:
         description: Build ZisK Docker image
         type: boolean
         default: false
 
+env:
+  ZISK_REF: ${{ inputs.zisk_ref }}
+
 jobs:
-  get-version:
-    name: Get bindings version
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Extract version
-        id: ver
-        run: |
-          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
-          SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
-          echo "version=$PREFIX${SUFFIX:+-$SUFFIX}" >> $GITHUB_OUTPUT
-
-  build-docker:
-    name: Build ZisK Docker image
-    needs: get-version
-    if: inputs.build_docker
-    uses: ./.github/workflows/publish-docker.yml
-    with:
-      zisk_ref: ${{ inputs.zisk_ref }}
-      bindings_version: ${{ needs.get-version.outputs.version }}
-    secrets: inherit
-
   build-ziskos:
     name: Build ziskos
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build static library
-        env:
-          ZISK_TAG: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }}
-        run: ./build.sh
+        run: ./build/build.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -77,19 +47,19 @@ jobs:
           if-no-files-found: error
 
   build-nupkg:
-    name: Build nupkg
+    name: Build NuGet package
     needs: build-ziskos
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       version: ${{ steps.pkg.outputs.version }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
 
       - name: Download libziskos artifact
         uses: actions/download-artifact@v4
@@ -99,19 +69,16 @@ jobs:
       - name: Move artifacts to bindings
         run: |
           mkdir -p src/bindings/runtimes/linux-riscv64/native
-          mkdir -p src/bindings/content
           mv libziskos.a src/bindings/runtimes/linux-riscv64/native/
-          mv libziskos.bflat.manifest src/bindings/content/
+          mv libziskos.bflat.manifest src/bindings/
 
       - name: Inject zisk_ref and package_version into manifest
-        env:
-          ZISK_REF: ${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }}
         run: |
           PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
           SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
           VERSION="$PREFIX${SUFFIX:+-$SUFFIX}"
 
-          MANIFEST=src/bindings/content/libziskos.bflat.manifest
+          MANIFEST=src/bindings/libziskos.bflat.manifest
           jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
             '. + {zisk_ref: $ref, package_version: $version}' \
             "$MANIFEST" > "$MANIFEST.tmp"
@@ -120,6 +87,14 @@ jobs:
       - name: Pack
         working-directory: src/bindings
         run: dotnet pack Nethermind.ZiskBindings.csproj -c release
+
+      - name: Publish NuGet package
+        if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
+        working-directory: src/bindings
+        run: |
+          dotnet nuget push ./artifacts/package/release/*.nupkg \
+            -k ${{ inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
+            -s ${{ inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
 
       - name: Get package version
         id: pkg
@@ -133,38 +108,22 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nupkg
-          path: |
-            src/bindings/artifacts/package/release/*.nupkg
-            src/bindings/artifacts/package/release/*.snupkg
+          path: src/bindings/artifacts/package/release/*.nupkg
           if-no-files-found: error
 
-  publish-nupkg-nuget:
-    name: Publish to NuGet
+  publish-docker:
+    name: Publish ZisK Docker image
+    if: inputs.build_docker
     needs: build-nupkg
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No') || github.event_name == 'release'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Download nupkg artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: nupkg
-          path: nupkg
-
-      - name: Push to NuGet
-        run: |
-          dotnet nuget push ./nupkg/*.nupkg \
-            -k ${{ github.event.inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
-            -s ${{ github.event.inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
+    uses: ./.github/workflows/publish-docker.yml
+    with:
+      zisk_ref: ${{ inputs.zisk_ref }}
+    secrets: inherit
 
   publish-nupkg-github:
     name: Publish to GitHub
+    if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
     needs: build-nupkg
-    if: (github.event_name == 'workflow_dispatch' && github.event.inputs.publish != 'No') || github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -197,7 +156,7 @@ jobs:
             **Package**: `Nethermind.ZiskBindings`
             **Version**: `${{ needs.build-nupkg.outputs.version }}`
 
-            Built from zisk repository ref: `${{ github.event.inputs.zisk_ref || 'pre-develop-0.16.0' }}`
+            Built from zisk repository ref: `${{ env.ZISK_REF }}`
           draft: false
           prerelease: ${{ contains(needs.build-nupkg.outputs.version, '-') }}
         env:

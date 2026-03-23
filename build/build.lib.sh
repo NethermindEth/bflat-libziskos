@@ -7,33 +7,23 @@ function cleanup() {
 
 function prepare_repo() {
     # Clone the repository
-    echo "Cloning zisk repository (tag: ${ZISK_TAG})..."
-    git clone --depth 1 --branch "${ZISK_TAG}" "${ZISK_REPO}" "${TMP_DIR}/zisk" || fail "Failed to clone zisk repository"
-    ZISK_COMMIT=$(git -C "${TMP_DIR}/zisk" rev-parse HEAD)
+    echo "Cloning zisk repository (ref: ${ZISK_REF})..."
+    ZISK_DIR="${TMP_DIR}/zisk"
+
+    git init "${ZISK_DIR}"
+    cd "${ZISK_DIR}"
+    git remote add origin "${ZISK_REPO}"
+    git fetch --depth=1 origin "${ZISK_REF}"
+    git checkout --detach FETCH_HEAD
+
+    ZISK_COMMIT=$(git -C "${ZISK_DIR}" rev-parse HEAD)
     echo "Zisk commit: ${ZISK_COMMIT}"
 
     # Apply patch
     echo "Applying crate type patch..."
-    pushd "${TMP_DIR}/zisk"
+    pushd "${ZISK_DIR}"
 
-    cat > /tmp/ziskos.patch << 'EOF'
-diff --git a/ziskos/entrypoint/Cargo.toml b/ziskos/entrypoint/Cargo.toml
-index 5974a596..e6668a6f 100644
---- a/ziskos/entrypoint/Cargo.toml
-+++ b/ziskos/entrypoint/Cargo.toml
-@@ -7,6 +7,9 @@ keywords = { workspace = true }
- repository = { workspace = true }
- categories = { workspace = true }
-
-+[lib]
-+crate-type = ["staticlib", "rlib"]
-+
- [dependencies]
- lib-c = { workspace = true }
-
-EOF
-
-    git apply /tmp/ziskos.patch
+    git apply "${SCRIPT_DIR}/cargo.toml.patch" || fail "Failed to apply crate type patch"
 
     # Copy custom target spec
     echo "Copying custom target specification..."
@@ -41,7 +31,7 @@ EOF
 
     # Copy patch file
     echo "Copying entrypoint patch..."
-    cp "${SCRIPT_DIR}/entrypoint-no-entrypoint.patch" . || fail "Failed to copy patch file"
+    cp "${SCRIPT_DIR}/entrypoint.patch" . || fail "Failed to copy patch file"
 
     popd
 }
@@ -54,7 +44,7 @@ function build_docker_image() {
 
 function build_in_docker() {
     # Build in Docker
-    pushd "${TMP_DIR}/zisk"
+    pushd "${ZISK_DIR}"
         echo "Building with Docker..."
         docker run --rm \
         -v "$(pwd):/workspace" \
@@ -70,7 +60,7 @@ function build_in_docker() {
 
             echo 'Applying patches for no_entrypoint feature...'
             # Apply patch to wrap _start, _zisk_main, memcpy, memmove and replace sys_alloc_aligned
-            patch -p1 -l < /workspace/entrypoint-no-entrypoint.patch || exit 1
+            patch -p1 -l < /workspace/entrypoint.patch || exit 1
 
             cd ziskos/entrypoint
 
@@ -86,7 +76,7 @@ function build_in_docker() {
         echo "Copying built library..."
         BUILT_LIB="target/riscv64imad-zisk-zkvm-elf/release/libziskos.a"
         if [ -f "${BUILT_LIB}" ]; then
-            cp "${BUILT_LIB}" "../../${OUTPUT_DIR}/libziskos.a" || fail "Failed to copy built library"
+            cp "${BUILT_LIB}" "${OUTPUT_DIR}/libziskos.a" || fail "Failed to copy built library"
             echo "Library copied to ${OUTPUT_DIR}/libziskos.a"
         else
             echo "Error: Built library not found at ${BUILT_LIB}"
@@ -99,11 +89,11 @@ function build_in_docker() {
 
 function build_syscalls() {
     # Build zisk_syscalls.S and add to lib.a
-    if [ -f "${SCRIPT_DIR}/src/zisk_syscalls/zisk_syscalls.S" ]; then
+    if [ -f "${ROOT_DIR}/src/zisk_syscalls/zisk_syscalls.S" ]; then
         echo "Building zisk_syscalls.S..."
         docker run --rm \
-        -v "${SCRIPT_DIR}/src/zisk_syscalls:/syscalls" \
-        -v "$(pwd)/${OUTPUT_DIR}:/output" \
+        -v "${ROOT_DIR}/src/zisk_syscalls:/syscalls" \
+        -v "${OUTPUT_DIR}:/output" \
         -w /syscalls \
         ziskos-builder \
         bash -c "
@@ -123,42 +113,11 @@ function build_syscalls() {
     fi
 }
 
-# function build_dotnet() {
-#     # Build .NET library if the project exists
-#     if [ -f "${SCRIPT_DIR}/src/dotnet/zisklib.riscv64.csproj" ] ; then
-#         echo "Building .NET library..."
-#         docker run --rm \
-#         -v "$(pwd):/workspace" \
-#         -w /workspace \
-#         mcr.microsoft.com/dotnet/sdk:10.0 \
-#         bash -c "
-#             set -e
-#             echo 'Building zisklib.riscv64.csproj...'
-#             dotnet build src/dotnet/zisklib.riscv64.csproj -c:Release || exit 1
-#             echo '.NET build completed!'
-#         " || fail "Failed to build .NET library"
-
-#         # Copy the built DLL
-#         echo "Copying built .NET library..."
-#         BUILT_DLL="${SCRIPT_DIR}/src/dotnet/bin/Release/net10.0/linux-riscv64/zisklib.dll"
-#         if [ -f "${BUILT_DLL}" ]; then
-#             cp "${BUILT_DLL}" "${OUTPUT_DIR}/lib.dll" || fail "Failed to copy built .NET library"
-#             echo ".NET library copied to ${OUTPUT_DIR}/lib.dll"
-#         else
-#             echo "Warning: .NET library not found at ${BUILT_DLL}"
-#             echo "Searching for available DLLs..."
-#             find ${SCRIPT_DIR}/src/dotnet/bin -name "*.dll" -type f || true
-#         fi
-#     else
-#         fail "Failed to find zisklib project"
-#     fi
-# }
-
 function copy_manifest() {
     # Copy manifest
     echo "Copying bflat-manifest.json..."
-    if [ -f "${SCRIPT_DIR}/bflat-manifest.json" ]; then
-        cp "${SCRIPT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/libziskos.bflat.manifest" || fail "Failed to copy bflat-manifest.json"
+    if [ -f "${ROOT_DIR}/bflat-manifest.json" ]; then
+        cp "${ROOT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/libziskos.bflat.manifest" || fail "Failed to copy bflat-manifest.json"
 
         if [ -n "${ZISK_COMMIT}" ] && command -v jq &>/dev/null; then
             jq --arg hash "${ZISK_COMMIT}" '. + {zisk_ref_hash: $hash}' \

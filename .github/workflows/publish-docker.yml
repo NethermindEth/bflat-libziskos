@@ -1,26 +1,20 @@
 name: Publish ZisK Docker image
 
 on:
-  push:
-    branches: [main] # To be removed when merged
-  workflow_dispatch:
-    inputs:
-      zisk_ref:
-        description: Zisk ref
-        required: true
-        default: pre-develop-0.16.0
   workflow_call:
     inputs:
       zisk_ref:
         description: Zisk ref
         required: true
         type: string
-        default: pre-develop-0.16.0
-      bindings_version:
-        description: Bindings version tag (e.g. 1.0.0-preview.4)
-        required: false
+        default: v0.16.1
+  workflow_dispatch:
+    inputs:
+      zisk_ref:
+        description: Zisk ref
+        required: true
         type: string
-        default: ""
+        default: v0.16.1
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,13 +27,42 @@ jobs:
     env:
       TARGET: x86_64-unknown-linux-gnu
     outputs:
-      zisk_commit: ${{ steps.pack.outputs.commit-hash }}
+      commit_hash: ${{ steps.check_ref.outputs.commit_hash }}
+      latest: ${{ steps.check_latest.outputs.latest }}
+      tag: ${{ steps.check_ref.outputs.tag }}
+
     steps:
       - name: Check out zisk repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: 0xPolygonHermez/zisk
           ref: ${{ inputs.zisk_ref }}
+
+      - name: Check repository reference
+        id: check_ref
+        run: |
+          ref="${{ inputs.zisk_ref }}"
+          tag="${ref#refs/tags/}"
+
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            echo "tag=$tag" >> $GITHUB_OUTPUT
+          fi
+
+          echo "commit_hash=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Check for the latest release
+        id: check_latest
+        if: steps.check_ref.outputs.tag != ''
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const ref = '${{ inputs.zisk_ref }}'.replace(/^refs\/tags\//, '');
+            const { data } = await github.rest.repos.getLatestRelease({
+              owner: '0xPolygonHermez',
+              repo: 'zisk',
+            });
+
+            core.setOutput('latest', ref === data.tag_name);
 
       - name: Install Rust toolchain
         run: |
@@ -55,7 +78,6 @@ jobs:
         run: cargo build --release --target $TARGET
 
       - name: Pack binaries
-        id: pack
         run: |
           mkdir -p zisk-dist/bin
           cp ./target/$TARGET/release/cargo-zisk zisk-dist/bin/
@@ -70,9 +92,6 @@ jobs:
           cp -r ./emulator-asm/src zisk-dist/zisk/emulator-asm
           cp -r ./lib-c/ zisk-dist/zisk
           cp ./emulator-asm/Makefile zisk-dist/zisk/emulator-asm
-
-          zisk_commit=$(git rev-parse HEAD)
-          echo "commit-hash=$zisk_commit" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -89,10 +108,10 @@ jobs:
       TARGET: x86_64-unknown-linux-gnu
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Download ZisK binaries
         uses: actions/download-artifact@v4
@@ -101,22 +120,21 @@ jobs:
           path: zisk
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
       - name: Publish to Docker Hub
-        env:
-          BINDINGS_VERSION: ${{ inputs.bindings_version }}
         run: |
-          EXTRA_TAG=""
-          if [ -n "$BINDINGS_VERSION" ]; then
-            EXTRA_TAG="-t nethermindeth/zisk:$BINDINGS_VERSION"
+          image_name=nethermindeth/zisk
+          tags=(-t $image_name:${{ needs.build.outputs.commit_hash }})
+
+          if [[ "${{ needs.build.outputs.tag }}" != "" ]]; then
+            tag="${{ needs.build.outputs.tag }}"
+            tags+=(-t $image_name:${tag#v})
           fi
-          docker buildx build . \
-            -f Dockerfile.zisk \
-            -t nethermindeth/zisk:latest \
-            -t nethermindeth/zisk:${{ needs.build.outputs.zisk_commit }} \
-            $EXTRA_TAG \
-            --push
+
+          [[ "${{ needs.build.outputs.latest }}" == "true" ]] && tags+=(-t $image_name:latest)
+
+          docker buildx build . -f Dockerfile.zisk "${tags[@]}" --push
