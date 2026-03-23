@@ -1,6 +1,6 @@
 # libziskos for RISC-V 64-bit
 
-[![Build and Release](https://github.com/nethermindeth/bflat-libziskos/actions/workflows/release.yml/badge.svg)](https://github.com/nethermindeth/bflat-libziskos/actions/workflows/release.yml)
+[![Build and Release](https://github.com/nethermindeth/bflat-libziskos/actions/workflows/build-release.yml/badge.svg)](https://github.com/nethermindeth/bflat-libziskos/actions/workflows/build-release.yml)
 [![GitHub release](https://img.shields.io/github/v/release/nethermindeth/bflat-libziskos)](https://github.com/nethermindeth/bflat-libziskos/releases)
 [![GitHub downloads](https://img.shields.io/github/downloads/nethermindeth/bflat-libziskos/total)](https://github.com/nethermindeth/bflat-libziskos/releases)
 
