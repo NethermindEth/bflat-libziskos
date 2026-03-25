@@ -11,19 +11,13 @@ function prepare_repo() {
     ZISK_DIR="${TMP_DIR}/zisk"
 
     git init "${ZISK_DIR}"
-    cd "${ZISK_DIR}"
+    pushd "${ZISK_DIR}" > /dev/null
     git remote add origin "${ZISK_REPO}"
     git fetch --depth=1 origin "${ZISK_REF}"
     git checkout --detach FETCH_HEAD
 
-    ZISK_COMMIT=$(git -C "${ZISK_DIR}" rev-parse HEAD)
+    ZISK_COMMIT=$(git rev-parse HEAD)
     echo "Zisk commit: ${ZISK_COMMIT}"
-
-    # Apply patch
-    echo "Applying crate type patch..."
-    pushd "${ZISK_DIR}"
-
-    git apply "${SCRIPT_DIR}/cargo.toml.patch" || fail "Failed to apply crate type patch"
 
     # Copy custom target spec
     echo "Copying custom target specification..."
@@ -33,7 +27,7 @@ function prepare_repo() {
     echo "Copying entrypoint patch..."
     cp "${SCRIPT_DIR}/entrypoint.patch" . || fail "Failed to copy patch file"
 
-    popd
+    popd > /dev/null
 }
 
 function build_docker_image() {
@@ -66,6 +60,9 @@ function build_in_docker() {
 
             # Add no_entrypoint to existing [features] section
             sed -i '/^\[features\]/a no_entrypoint = []' Cargo.toml
+
+            export LIBCLANG_PATH=\"\$(dirname \"\$(find /usr/lib -name libclang.so -print -quit)\")\"
+            echo \"Using LIBCLANG_PATH=\${LIBCLANG_PATH}\"
 
             cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 

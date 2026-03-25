@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     git \
+    libclang-dev \
     gcc-riscv64-linux-gnu \
     g++-riscv64-linux-gnu \
     binutils-riscv64-linux-gnu \
