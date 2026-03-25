@@ -38,7 +38,7 @@ jobs:
         run: ./build/build.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: libziskos
           path: |
@@ -62,7 +62,7 @@ jobs:
         uses: actions/setup-dotnet@v5
 
       - name: Download libziskos artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: libziskos
 
@@ -105,7 +105,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload nupkg artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nupkg
           path: src/bindings/artifacts/package/release/*.nupkg
@@ -129,13 +129,13 @@ jobs:
       contents: write
     steps:
       - name: Download nupkg artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: nupkg
           path: nupkg
 
       - name: Download libziskos artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: libziskos
           path: libziskos
