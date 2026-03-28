@@ -129,6 +129,9 @@ public static partial class Crypto
     public static partial void sha256_c(ReadOnlySpan<byte> input, nuint input_len, Span<byte> output);
 
     [LibraryImport("__Internal")]
+    public static partial void syscall_keccak_f(Span<ulong> state);
+
+    [LibraryImport("__Internal")]
     [return: MarshalAs(UnmanagedType.U1)]
     public static partial bool verify_kzg_proof_c(
         ReadOnlySpan<byte> z,
