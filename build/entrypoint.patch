@@ -1,27 +1,12 @@
 diff --git a/ziskos/entrypoint/src/alloc/alloc.rs b/ziskos/entrypoint/src/alloc/alloc.rs
-index b94c228..0758079 100644
+index b94c228..7e9fd38 100644
 --- a/ziskos/entrypoint/src/alloc/alloc.rs
 +++ b/ziskos/entrypoint/src/alloc/alloc.rs
-@@ -29,27 +29,13 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
+@@ -29,7 +29,7 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
  }
- 
+
  #[cfg(all(target_os = "zkvm", target_vendor = "zisk"))]
 -#[inline(always)]
--pub unsafe fn inline_bump_alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
--    // SAFETY: Single threaded, so nothing else can touch this while we're working.
--    let mut heap_pos = unsafe { HEAP_POS };
--
--    let offset = heap_pos & (align - 1);
--    if offset != 0 {
--        heap_pos += align - offset;
--    }
--
--    let ptr = heap_pos as *mut u8;
--    heap_pos += bytes;
--
--    // Check to make sure heap doesn't collide with SYSTEM memory.
--    if HEAP_TOP < heap_pos {
--        panic!("OOM limit of heap with bump allocator");
 +#[inline(never)]
  pub unsafe fn inline_bump_alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
      // SAFETY: Single threaded, so nothing else can touch this while we're working.
@@ -42,9 +27,9 @@ index 2e6835d..2e83ecd 100644
 +        .type   __wrap_memcmp,@function
 +__wrap_memcmp:
          csrs    0x814, a1  # Marker: Write count (a2) to CSR 0x814
-         add	a0,a0,a2        
+         add	a0,a0,a2
          ret
-                
+
 -        .size memcmp, .-memcmp
 +        .size __wrap_memcmp, .-__wrap_memcmp
          .section .text.hot,"ax",@progbits
@@ -67,7 +52,7 @@ index a087f7d..057f5c5 100644
          csrs    0x813, a1                  # Marker: Write count (a2) to CSR 0x813
          add	x0,a0,a2
          ret
- 
+
 -        .size memcpy, .-memcpy
 +        .size __wrap_memcpy, .-__wrap_memcpy
          .section .text.hot,"ax",@progbits
@@ -89,7 +74,7 @@ index af3655c..46a1807 100644
 +__wrap_memmove:
          csrs    0x813, a1                  # Marker: Write count (a2) to CSR 0x813
          add	x0,a0,a2
-         ret        
+         ret
 -        .size memmove, .-memmove
 +        .size __wrap_memmove, .-__wrap_memmove
          .section .text.hot,"ax",@progbits
@@ -109,7 +94,7 @@ index fc70bad..9fa414e 100644
 +        .type   __wrap_memset,@function
  # memset(void *s, int c, size_t n)
  # a0 = destination pointer (s)
- # a1 = fill value (c) 
+ # a1 = fill value (c)
  # a2 = byte count (n)
 -memset:
 +__wrap_memset:
@@ -119,7 +104,7 @@ index fc70bad..9fa414e 100644
 @@ -53,5 +53,5 @@ memset:
          csrs 0x816, a0; addi x0, a2, \val; ret; nop
  .endr
- 
+
 -        .size memset, .-memset
 +        .size __wrap_memset, .-__wrap_memset
          .section .text.hot,"ax",@progbits
@@ -131,7 +116,7 @@ index 88575d4..781b12a 100644
 @@ -289,6 +289,7 @@ pub mod ziskos {
      use crate::ziskos_definitions::ziskos_config::*;
      use core::arch::asm;
- 
+
 +    #[cfg(not(feature = "no_entrypoint"))]
      #[no_mangle]
      #[link_section = ".text.init"]
@@ -139,7 +124,7 @@ index 88575d4..781b12a 100644
 @@ -339,6 +340,7 @@ pub mod ziskos {
          getrandom::register_custom_getrandom!(zkvm_getrandom);
      }
- 
+
 +    #[cfg(not(feature = "no_entrypoint"))]
      #[no_mangle]
      unsafe extern "C" fn _zisk_main() {
@@ -147,7 +132,7 @@ index 88575d4..781b12a 100644
 @@ -430,6 +432,12 @@ pub mod ziskos {
          unimplemented!("sys_argv");
      }
- 
+
 +    #[no_mangle]
 +    extern "C" fn sys_panic(_msg_ptr: *const u8, _msg_len: usize) -> ! {
 +        // Empty implementation - panic handling is done by bflat runtime
