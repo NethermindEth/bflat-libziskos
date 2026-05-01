@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
   gcc-riscv64-linux-gnu \
   g++-riscv64-linux-gnu \
   binutils-riscv64-linux-gnu \
+  libclang-dev \
+  clang \
   && rm -rf /var/lib/apt/lists/*
 
 # Add rust-src component for build-std

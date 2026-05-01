@@ -19,11 +19,7 @@ function prepare_repo() {
     ZISK_COMMIT=$(git -C "${ZISK_DIR}" rev-parse HEAD)
     echo "Zisk commit: ${ZISK_COMMIT}"
 
-    # Apply patch
-    echo "Applying crate type patch..."
     pushd "${ZISK_DIR}"
-
-    git apply "${SCRIPT_DIR}/cargo.toml.patch" || fail "Failed to apply crate type patch"
 
     # Copy custom target spec
     echo "Copying custom target specification..."
