@@ -68,29 +68,29 @@ jobs:
 
       - name: Move artifacts to bindings
         run: |
-          mkdir -p src/bindings/runtimes/linux-riscv64/native
-          mv libziskos.a src/bindings/runtimes/linux-riscv64/native/
-          mv libziskos.bflat.manifest src/bindings/
+          mkdir -p src/runtime/runtimes/linux-riscv64/native
+          mv libziskos.a src/runtime/runtimes/linux-riscv64/native/
+          mv libziskos.bflat.manifest src/runtime/
 
       - name: Inject zisk_ref and package_version into manifest
         run: |
-          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
-          SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/bindings/Directory.Build.props | tr -d '[:space:]')
+          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' src/runtime/Directory.Build.props | tr -d '[:space:]')
+          SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/runtime/Directory.Build.props | tr -d '[:space:]')
           VERSION="$PREFIX${SUFFIX:+-$SUFFIX}"
 
-          MANIFEST=src/bindings/libziskos.bflat.manifest
+          MANIFEST=src/runtime/libziskos.bflat.manifest
           jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
             '. + {zisk_ref: $ref, package_version: $version}' \
             "$MANIFEST" > "$MANIFEST.tmp"
           mv "$MANIFEST.tmp" "$MANIFEST"
 
       - name: Pack
-        working-directory: src/bindings
-        run: dotnet pack Nethermind.ZiskBindings.csproj -c release
+        working-directory: src/runtime
+        run: dotnet pack Nethermind.ZiskOS.Runtime.csproj -c release
 
       - name: Publish NuGet package
         if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
-        working-directory: src/bindings
+        working-directory: src/runtime
         run: |
           dotnet nuget push ./artifacts/package/release/*.nupkg \
             -k ${{ inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
@@ -98,17 +98,17 @@ jobs:
 
       - name: Get package version
         id: pkg
-        working-directory: src/bindings
+        working-directory: src/runtime
         run: |
           PKG=$(ls ./artifacts/package/release/*.nupkg | head -1)
-          VERSION=$(basename "$PKG" .nupkg | sed 's/^Nethermind\.ZiskBindings\.//')
+          VERSION=$(basename "$PKG" .nupkg | sed 's/^Nethermind\.ZiskOS\.Runtime\.//')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload nupkg artifact
         uses: actions/upload-artifact@v7
         with:
           name: nupkg
-          path: src/bindings/artifacts/package/release/*.nupkg
+          path: src/runtime/artifacts/package/release/*.nupkg
           if-no-files-found: error
 
   publish-docker:
@@ -144,7 +144,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.build-nupkg.outputs.version }}
-          name: Nethermind.ZiskBindings ${{ needs.build-nupkg.outputs.version }}
+          name: Nethermind.ZiskOS.Runtime ${{ needs.build-nupkg.outputs.version }}
           files: |
             nupkg/*.nupkg
             nupkg/*.snupkg
@@ -153,7 +153,7 @@ jobs:
           body: |
             NuGet package for ZisK C# bindings.
 
-            **Package**: `Nethermind.ZiskBindings`
+            **Package**: `Nethermind.ZiskOS.Runtime`
             **Version**: `${{ needs.build-nupkg.outputs.version }}`
 
             Built from zisk repository ref: `${{ env.ZISK_REF }}`

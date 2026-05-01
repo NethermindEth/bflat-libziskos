@@ -7,8 +7,6 @@
       "os": "linux",
       "libc": "zisk",
       "static_lib": "runtimes/linux-riscv64/native/libziskos.a",
-      "dotnet_lib": "Nethermind.ZiskBindings.dll",
-      "dotnet_assemblyname": "Nethermind.ZiskBindings",
       "wrap_symbols": ["memcpy", "memset", "memmove", "memcmp"]
     }
   ]

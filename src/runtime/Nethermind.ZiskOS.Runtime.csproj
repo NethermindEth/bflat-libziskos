@@ -2,27 +2,22 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Nethermind.ZiskBindings</RootNamespace>
-    <IsAotCompatible>true</IsAotCompatible>
-    <VerifyReferenceAotCompatibility>true</VerifyReferenceAotCompatibility>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <NoBuild>true</NoBuild>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>
-    <Description>C# bindings for Zisk</Description>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <!--<GenerateDocumentationFile>true</GenerateDocumentationFile>-->
-    <IncludeSymbols>true</IncludeSymbols>
-    <PackageId>Nethermind.ZiskBindings</PackageId>
+    <Description>ZiskOS runtime for the Nethermind guest for Zisk</Description>
+    <EmbedUntrackedSources>false</EmbedUntrackedSources>
+    <IncludeSymbols>false</IncludeSymbols>
+    <PackageId>Nethermind.ZiskOS.Runtime</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://nethermind.io</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>zisk</PackageTags>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/nethermindeth/bflat-libziskos</RepositoryUrl>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,18 +29,11 @@
       <Pack>true</Pack>
       <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
     </None>
-    <None Update="Nethermind.ZiskBindings.targets">
+    <None Update="Nethermind.ZiskOS.Runtime.targets">
       <Pack>true</Pack>
       <PackagePath>build/%(Filename)%(Extension)</PackagePath>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.103">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
 </Project>

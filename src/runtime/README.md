@@ -1,8 +1,8 @@
-# Zisk bindings
+# ZiskOS runtime
 
-[![Nethermind.ZiskBindings](https://img.shields.io/nuget/v/Nethermind.ZiskBindings)](https://www.nuget.org/packages/Nethermind.ZiskBindings)
+[![Nethermind.ZiskOS.Runtime](https://img.shields.io/nuget/v/Nethermind.ZiskOS.Runtime)](https://www.nuget.org/packages/Nethermind.ZiskOS.Runtime)
 
-C# bindings for the [Zisk VM](https://zisk.technology)
+ZiskOS runtime for the Nethermind guest for [Zisk VM](https://zisk.technology).
 
 ## License
 
