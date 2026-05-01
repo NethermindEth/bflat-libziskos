@@ -61,9 +61,6 @@ function build_in_docker() {
             # Add no_entrypoint to existing [features] section
             sed -i '/^\[features\]/a no_entrypoint = []' Cargo.toml
 
-            export LIBCLANG_PATH=\"\$(dirname \"\$(find /usr/lib -name libclang.so -print -quit)\")\"
-            echo \"Using LIBCLANG_PATH=\${LIBCLANG_PATH}\"
-
             cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
             echo 'Build completed!'

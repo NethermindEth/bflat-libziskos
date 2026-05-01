@@ -1,4 +1,4 @@
-FROM rustlang/rust:nightly
+FROM rustlang/rust@sha256:3bd35cf08d640be132d2d7cff92f5fc25414e90d71d60c7c2471792f22c5aadd
 
 # Install build dependencies including RISC-V toolchain
 RUN apt-get update && apt-get install -y \
