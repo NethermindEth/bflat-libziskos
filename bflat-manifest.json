@@ -6,7 +6,7 @@
       "arch": "riscv64",
       "os": "linux",
       "libc": "zisk",
-      "static_lib": "runtimes/linux-riscv64/native/libziskos.a",
+      "static_lib": "libziskos.a",
       "wrap_symbols": ["memcpy", "memset", "memmove", "memcmp"]
     }
   ]

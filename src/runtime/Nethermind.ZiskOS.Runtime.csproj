@@ -27,11 +27,7 @@
     </None>
     <None Update="libziskos.bflat.manifest">
       <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/%(Filename)%(Extension)</PackagePath>
-    </None>
-    <None Update="Nethermind.ZiskOS.Runtime.targets">
-      <Pack>true</Pack>
-      <PackagePath>build/%(Filename)%(Extension)</PackagePath>
+      <PackagePath>runtimes/linux-riscv64/native/%(Filename)%(Extension)</PackagePath>
     </None>
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
