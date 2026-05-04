@@ -4,7 +4,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/nethermindeth/bflat-libziskos)](https://github.com/nethermindeth/bflat-libziskos/releases)
 [![GitHub downloads](https://img.shields.io/github/downloads/nethermindeth/bflat-libziskos/total)](https://github.com/nethermindeth/bflat-libziskos/releases)
 
-Static library builds of [ziskos](https://github.com/0xPolygonHermez/zisk) for RISC-V 64-bit architecture with IMA extensions, suitable for [Nethermind's bflat](https://github.com/nethermindeth/bflat-riscv64) compiler. Additionally it includes a thin layer with C# bindings.
+Static library builds of [ziskos](https://github.com/0xPolygonHermez/zisk) for RISC-V 64-bit architecture with IMA extensions, suitable for [Nethermind's bflat](https://github.com/nethermindeth/bflat-riscv64) compiler. The repository also ships the [`Nethermind.ZiskOS.Runtime`](https://www.nuget.org/packages/Nethermind.ZiskOS.Runtime) NuGet package, which embeds the static library for use from .NET projects targeting the Zisk zkVM.
 
 ## About
 
@@ -21,12 +21,13 @@ The reason for choosing this target over rv64im is pretty simple. It is much mor
 
 Each release includes:
 
-- `lib.a` - static library with ziskos functionality (precompiles) and direct system call wrappers (`zisk_syscalls.S` assembled for rv64ima).
-- `lib.dll` - .NET managed library.
+- `libziskos.a` - static library with ziskos functionality (precompiles) and direct system call wrappers (`zisk_syscalls.S` assembled for rv64ima).
+- `libziskos.bflat.manifest` - bflat manifest describing the library, its target triple, and the resolved zisk commit hash. It also instructs bflat to wrap `memcpy`, `memset`, `memmove`, and `memcmp`.
+- `Nethermind.ZiskOS.Runtime` NuGet package - .NET runtime package that bundles `libziskos.a` and the manifest for consumption from managed projects.
 
 ## Usage
 
-Use bflat's ability to link to external libraries and provide the link to this repository.
+Use bflat's ability to link to external libraries and provide the link to this repository, or reference the `Nethermind.ZiskOS.Runtime` NuGet package from a .NET project.
 
 ## Building Locally
 
@@ -54,10 +55,10 @@ export ZISK_REF=v0.17.0
 3. Run the build script:
 
 ```bash
-./build.sh
+./build/build.sh
 ```
 
-4. Find the built libraries in the `output/` directory:
+4. Find the built artifacts in the `output/` directory:
 
 ```bash
 ls -lh output/
@@ -67,16 +68,16 @@ ls -lh output/
 
 The build process:
 
-1. **Clones the zisk repository** at the specified tag
-2. **Applies minimal patches**:
-   - Adds `crate-type = ["staticlib", "rlib"]` to `Cargo.toml`
-   - Skips C++ library compilation for zkvm target in `lib-c/build.rs`
-3. **Builds Rust library** using a custom RISC-V target specification (`riscv64imad-zisk-zkvm-elf`)
-4. **Assembles system call wrappers** from `zisk_syscalls/zisk_syscalls.S` with `riscv64-linux-gnu-as --march=rv64ima --mabi=lp64`
-5. **Adds syscalls to lib.a** using `ar` to merge the object file into the static library
-6. **Builds .NET library** if the project exists in the zisk repository
+1. **Clones the zisk repository** at the specified tag.
+2. **Builds a Docker image** based on `rustlang/rust:nightly` with the RISC-V cross-compilation toolchain (`gcc-riscv64-linux-gnu`, `binutils-riscv64-linux-gnu`) and the `rust-src` component for `-Z build-std`.
+3. **Applies `entrypoint.patch`** to the cloned `ziskos/entrypoint` crate. The patch wraps `_start`, `_zisk_main`, `memcpy`, `memmove`, and `memcmp` for bflat-side wrap linkage, builds the unmangled `_start`/`_zisk_main` entrypoints, replaces `sys_alloc_aligned`, and exposes `inline_bump_alloc_aligned`. It also patches `lib-c/build.rs` to skip the C++ library compilation for the `zkvm` target.
+4. **Adds the `no_entrypoint` feature** to the entrypoint crate so the static library can be linked into a host-provided entrypoint.
+5. **Builds the Rust library** with Rust nightly using a custom RISC-V target specification (`riscv64imad-zisk-zkvm-elf`) and `-Z build-std=std,panic_abort`.
+6. **Assembles system call wrappers** from `src/zisk_syscalls/zisk_syscalls.S` with `riscv64-linux-gnu-as --march=rv64ima --mabi=lp64`.
+7. **Merges syscalls into `libziskos.a`** using `riscv64-linux-gnu-ar` and `riscv64-linux-gnu-ranlib`.
+8. **Emits the bflat manifest** (`libziskos.bflat.manifest`), injecting the resolved zisk commit hash as `zisk_ref_hash` when `jq` is available.
 
-The final `lib.a` contains:
+The final `libziskos.a` contains:
 
 - ziskos core functionality (precompiles, runtime)
 - Direct system call wrappers for zkVM syscalls
