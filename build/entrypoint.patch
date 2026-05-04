@@ -2,11 +2,12 @@ diff --git a/ziskos/entrypoint/src/alloc/alloc.rs b/ziskos/entrypoint/src/alloc/
 index b94c228..7e9fd38 100644
 --- a/ziskos/entrypoint/src/alloc/alloc.rs
 +++ b/ziskos/entrypoint/src/alloc/alloc.rs
-@@ -29,7 +29,7 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
+@@ -29,7 +29,8 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
  }
  
  #[cfg(all(target_os = "zkvm", target_vendor = "zisk"))]
 -#[inline(always)]
++#[no_mangle]
 +#[inline(never)]
  pub unsafe fn inline_bump_alloc_aligned(bytes: usize, align: usize) -> *mut u8 {
      // SAFETY: Single threaded, so nothing else can touch this while we're working.
