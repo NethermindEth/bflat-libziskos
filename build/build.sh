@@ -13,7 +13,7 @@ if [ -z "$ZISK_REF" ]; then
     fail "Error: ZISK_REF is not set"
 fi
 
-ZISK_REPO="https://github.com/0xPolygonHermez/zisk.git"
+ZISK_REPO="https://github.com/rubo/zisk.git"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TMP_DIR="${ROOT_DIR}/tmp"
