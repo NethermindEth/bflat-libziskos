@@ -58,8 +58,16 @@ function build_in_docker() {
 
             cd ziskos/entrypoint
 
+            # Ensure staticlib output (dropped from crate-type in zisk v0.18.0)
+            sed -i 's/^crate-type = \[\"rlib\"\]$/crate-type = [\"rlib\", \"staticlib\"]/' Cargo.toml
+
             # Add no_entrypoint to existing [features] section
             sed -i '/^\[features\]/a no_entrypoint = []' Cargo.toml
+
+            # Provide a panic_handler stub (crate became no_std for zkvm in v0.18.0,
+            # and a staticlib in no_std requires #[panic_handler]; bflat handles
+            # actual panic delivery via sys_panic).
+            printf '\n#[cfg(all(target_os = \"zkvm\", target_vendor = \"zisk\"))]\n#[panic_handler]\nfn _bflat_panic_handler(_info: &core::panic::PanicInfo) -> ! { loop {} }\n' >> src/lib.rs
 
             cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
