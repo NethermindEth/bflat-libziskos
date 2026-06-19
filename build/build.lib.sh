@@ -52,6 +52,12 @@ function build_in_docker() {
 
             echo 'Building ziskos entrypoint for riscv64imad-zisk-zkvm-elf...'
 
+            # zisk v1.0.0-alpha ships a rust-toolchain.toml pinning the 'stable'
+            # channel, but build-std requires nightly + rust-src. Drop the override
+            # so the build uses the image's default nightly toolchain, which already
+            # has rust-src installed (the plain 'nightly' channel does not).
+            rm -f rust-toolchain.toml rust-toolchain
+
             echo 'Applying patches for no_entrypoint feature...'
             # Apply patch to wrap _start, _zisk_main, memcpy, memmove and replace sys_alloc_aligned
             patch -p1 -l < /workspace/entrypoint.patch || exit 1
@@ -69,7 +75,7 @@ function build_in_docker() {
             # actual panic delivery via sys_panic).
             printf '\n#[cfg(all(target_os = \"zkvm\", target_vendor = \"zisk\"))]\n#[panic_handler]\nfn _bflat_panic_handler(_info: &core::panic::PanicInfo) -> ! { loop {} }\n' >> src/lib.rs
 
-            cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
+            cargo build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
             echo 'Build completed!'
         " || fail "Failed to build ziskos entrypoint"
