@@ -5,7 +5,7 @@ index b94c228..7e9fd38 100644
 @@ -29,7 +29,8 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
  }
 
- #[cfg(all(target_os = "zkvm", target_vendor = "zisk"))]
+ #[cfg(zisk_guest)]
 -#[inline(always)]
 +#[no_mangle]
 +#[inline(never)]
