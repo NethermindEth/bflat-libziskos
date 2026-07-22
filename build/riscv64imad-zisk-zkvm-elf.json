@@ -15,6 +15,7 @@
   "features": "+m,+a,+d",
   "max-atomic-width": 64,
   "atomic-cas": true,
+  "singlethread": true,
   "executables": true,
   "panic-strategy": "abort",
   "relocation-model": "static",
