@@ -8,6 +8,16 @@ on:
         required: true
         type: string
         default: v0.17.0
+      zisk_repo:
+        description: Zisk repository
+        required: false
+        type: string
+        default: 0xPolygonHermez/zisk
+      float:
+        description: Build with float support (zisk-core/float) and publish to nethermindeth/zisk-float
+        required: false
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       zisk_ref:
@@ -15,9 +25,19 @@ on:
         required: true
         type: string
         default: v0.17.0
+      zisk_repo:
+        description: Zisk repository
+        required: false
+        type: string
+        default: 0xPolygonHermez/zisk
+      float:
+        description: Build with float support (zisk-core/float) and publish to nethermindeth/zisk-float
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-float-${{ inputs.float }}
   cancel-in-progress: true
 
 jobs:
@@ -35,7 +55,7 @@ jobs:
       - name: Check out zisk repository
         uses: actions/checkout@v6
         with:
-          repository: 0xPolygonHermez/zisk
+          repository: ${{ inputs.zisk_repo || '0xPolygonHermez/zisk' }}
           ref: ${{ inputs.zisk_ref }}
 
       - name: Check repository reference
@@ -57,12 +77,15 @@ jobs:
         with:
           script: |
             const ref = '${{ inputs.zisk_ref }}'.replace(/^refs\/tags\//, '');
-            const { data } = await github.rest.repos.getLatestRelease({
-              owner: '0xPolygonHermez',
-              repo: 'zisk',
-            });
+            const [owner, repo] = '${{ inputs.zisk_repo || '0xPolygonHermez/zisk' }}'.split('/');
 
-            core.setOutput('latest', ref === data.tag_name);
+            try {
+              const { data } = await github.rest.repos.getLatestRelease({ owner, repo });
+              core.setOutput('latest', ref === data.tag_name);
+            } catch (e) {
+              // Forks without releases have no "latest"
+              core.setOutput('latest', false);
+            }
 
       - name: Install Rust toolchain
         run: |
@@ -75,7 +98,12 @@ jobs:
         run: ./install_deps.sh
 
       - name: Build
-        run: cargo build --release --target $TARGET
+        run: |
+          FEATURES=""
+          if [ "${{ inputs.float }}" = "true" ]; then
+            FEATURES="--features zisk-core/float"
+          fi
+          cargo build --release --target $TARGET $FEATURES
 
       - name: Pack binaries
         run: |
@@ -91,6 +119,9 @@ jobs:
           mkdir -p zisk-dist/zisk/emulator-asm/src
           cp -r ./emulator-asm/src zisk-dist/zisk/emulator-asm
           cp -r ./lib-c/ zisk-dist/zisk
+          if [ -d ./lib-float ]; then
+            cp -r ./lib-float/ zisk-dist/zisk
+          fi
           cp ./emulator-asm/Makefile zisk-dist/zisk/emulator-asm
 
       - name: Upload artifact
@@ -128,6 +159,9 @@ jobs:
       - name: Publish to Docker Hub
         run: |
           image_name=nethermindeth/zisk
+          if [[ "${{ inputs.float }}" == "true" ]]; then
+            image_name=nethermindeth/zisk-float
+          fi
           tags=(-t $image_name:${{ needs.build.outputs.commit_hash }})
 
           if [[ "${{ needs.build.outputs.tag }}" != "" ]]; then

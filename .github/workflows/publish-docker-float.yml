@@ -1,0 +1,24 @@
+name: Publish ZisK Float Docker image
+
+on:
+  workflow_dispatch:
+    inputs:
+      zisk_ref:
+        description: Zisk ref
+        required: true
+        type: string
+        default: main
+      zisk_repo:
+        description: Zisk repository
+        required: false
+        type: string
+        default: 0xPolygonHermez/zisk
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-docker.yml
+    secrets: inherit
+    with:
+      zisk_ref: ${{ inputs.zisk_ref }}
+      zisk_repo: ${{ inputs.zisk_repo }}
+      float: true
