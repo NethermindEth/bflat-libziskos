@@ -1,4 +1,10 @@
-FROM rustlang/rust:nightly
+# Official rust image (rustlang/rust only publishes nightly tags).
+FROM rust:1.97.1
+
+# The build uses nightly-gated flags (-Z build-std, -Z json-target-spec);
+# RUSTC_BOOTSTRAP lets the pinned stable toolchain accept them, so the build
+# is reproducible instead of floating with rustlang/rust:nightly.
+ENV RUSTC_BOOTSTRAP=1
 
 # Install build dependencies including RISC-V toolchain
 RUN apt-get update && apt-get install -y \
