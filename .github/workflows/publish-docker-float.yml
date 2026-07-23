@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: 0xPolygonHermez/zisk
+      disable_avx512:
+        description: Force AVX2-baseline build (neuter pil2-proofman AVX-512 detection)
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   publish:
@@ -22,3 +27,4 @@ jobs:
       zisk_ref: ${{ inputs.zisk_ref }}
       zisk_repo: ${{ inputs.zisk_repo }}
       float: true
+      disable_avx512: ${{ inputs.disable_avx512 }}

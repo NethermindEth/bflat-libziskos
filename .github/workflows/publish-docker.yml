@@ -18,6 +18,11 @@ on:
         required: false
         type: boolean
         default: false
+      disable_avx512:
+        description: Force AVX2-baseline build (neuter pil2-proofman AVX-512 detection)
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       zisk_ref:
@@ -35,6 +40,11 @@ on:
         required: false
         type: boolean
         default: false
+      disable_avx512:
+        description: Force AVX2-baseline build (neuter pil2-proofman AVX-512 detection)
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-float-${{ inputs.float }}
@@ -96,6 +106,24 @@ jobs:
       - name: Install dependencies
         working-directory: tools/test-env
         run: ./install_deps.sh
+
+      # pil2-proofman bakes the build host's SIMD level into the stark C++
+      # library (/proc/cpuinfo probes in starks-lib-c/build.rs and the
+      # pil2-stark Makefiles). Hosted runners are a CPU lottery (AVX2-only
+      # EPYC vs AVX-512 Ice Lake), so an AVX-512 runner produces binaries
+      # that SIGILL on AVX2-only machines. Neuter the avx512 probes in the
+      # fetched git checkouts so images are always AVX2-baseline.
+      - name: Disable AVX-512
+        if: inputs.disable_avx512
+        run: |
+          cargo fetch
+          files=$(grep -rl avx512 "${CARGO_HOME:-$HOME/.cargo}"/git/checkouts/pil2-proofman-*/ \
+            --include=Makefile --include=build.rs)
+          if [ -z "$files" ]; then
+            echo "::error::no avx512 probes found in pil2-proofman checkouts; detection moved — update this step"
+            exit 1
+          fi
+          echo "$files" | xargs sed -i 's/avx512/avx512_disabled/g'
 
       - name: Build
         run: |
