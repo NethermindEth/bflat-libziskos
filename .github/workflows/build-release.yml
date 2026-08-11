@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -52,14 +52,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
+    env:
+      NUGET_HOST: ${{ inputs.publish == 'Staging' && 'https://int.nugettest.org' || 'https://www.nuget.org' }}
     outputs:
       version: ${{ steps.pkg.outputs.version }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
 
       - name: Download libziskos artifact
         uses: actions/download-artifact@v8
@@ -88,13 +91,20 @@ jobs:
         working-directory: src/runtime
         run: dotnet pack Nethermind.ZiskOS.Runtime.csproj -c release
 
+      - name: NuGet login
+        uses: nuget/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+          audience: ${{ env.NUGET_HOST }}
+          token-service-url: ${{ env.NUGET_HOST }}/api/v2/token
+
       - name: Publish NuGet package
         if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
         working-directory: src/runtime
         run: |
           dotnet nuget push ./artifacts/package/release/*.nupkg \
-            -k ${{ inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
-            -s ${{ inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
+            -k "${{ steps.login.outputs.NUGET_API_KEY }}" -s ${{ env.NUGET_HOST }}/api/v2/package
 
       - name: Get package version
         id: pkg
