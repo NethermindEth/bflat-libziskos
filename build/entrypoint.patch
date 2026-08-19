@@ -1,10 +1,10 @@
 diff --git a/ziskos/entrypoint/src/alloc/alloc.rs b/ziskos/entrypoint/src/alloc/alloc.rs
-index b94c228..7e9fd38 100644
+index 4a0878e..2d2073a 100644
 --- a/ziskos/entrypoint/src/alloc/alloc.rs
 +++ b/ziskos/entrypoint/src/alloc/alloc.rs
-@@ -29,7 +29,8 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
+@@ -133,7 +133,8 @@ pub unsafe extern "C" fn sys_alloc_aligned(bytes: usize, align: usize) -> *mut u
  }
-
+ 
  #[cfg(zisk_guest)]
 -#[inline(always)]
 +#[no_mangle]
@@ -13,7 +13,7 @@ index b94c228..7e9fd38 100644
      // SAFETY: Single threaded, so nothing else can touch this while we're working.
      let mut heap_pos = unsafe { HEAP_POS };
 diff --git a/ziskos/entrypoint/src/dma/memcmp.s b/ziskos/entrypoint/src/dma/memcmp.s
-index 2e6835d..2e83ecd 100644
+index 8485595..744676f 100644
 --- a/ziskos/entrypoint/src/dma/memcmp.s
 +++ b/ziskos/entrypoint/src/dma/memcmp.s
 @@ -2,13 +2,13 @@
@@ -25,12 +25,13 @@ index 2e6835d..2e83ecd 100644
          .p2align        4
 -        .type   memcmp,@function
 -memcmp:
+-        csrrs   a0,0x814, a1  # DMA memcmp: result -> a0, src -> a1
 +        .type   __wrap_memcmp,@function
 +__wrap_memcmp:
-         csrs    0x814, a1  # Marker: Write count (a2) to CSR 0x814
-         add	a0,a0,a2
++        csrrs   a0,0x814, a1  # DMA __wrap_memcmp: result -> a0, src -> a1
+         add	x0,a0,a2      # Marker: dst (a0), count (a2)       
          ret
-
+                
 -        .size memcmp, .-memcmp
 +        .size __wrap_memcmp, .-__wrap_memcmp
          .section .text.hot,"ax",@progbits
@@ -53,7 +54,7 @@ index a087f7d..057f5c5 100644
          csrs    0x813, a1                  # Marker: Write count (a2) to CSR 0x813
          add	x0,a0,a2
          ret
-
+ 
 -        .size memcpy, .-memcpy
 +        .size __wrap_memcpy, .-__wrap_memcpy
          .section .text.hot,"ax",@progbits
@@ -75,13 +76,13 @@ index af3655c..46a1807 100644
 +__wrap_memmove:
          csrs    0x813, a1                  # Marker: Write count (a2) to CSR 0x813
          add	x0,a0,a2
-         ret
+         ret        
 -        .size memmove, .-memmove
 +        .size __wrap_memmove, .-__wrap_memmove
          .section .text.hot,"ax",@progbits
 \ No newline at end of file
 diff --git a/ziskos/entrypoint/src/dma/memset.s b/ziskos/entrypoint/src/dma/memset.s
-index fc70bad..9fa414e 100644
+index fc70bad..dda0b2a 100644
 --- a/ziskos/entrypoint/src/dma/memset.s
 +++ b/ziskos/entrypoint/src/dma/memset.s
 @@ -2,14 +2,14 @@
@@ -92,54 +93,64 @@ index fc70bad..9fa414e 100644
 +        .globl  __wrap_memset
          .p2align        4
 -        .type   memset,@function
+-# memset(void *s, int c, size_t n)
 +        .type   __wrap_memset,@function
- # memset(void *s, int c, size_t n)
++# __wrap_memset(void *s, int c, size_t n)
  # a0 = destination pointer (s)
- # a1 = fill value (c)
+ # a1 = fill value (c) 
  # a2 = byte count (n)
 -memset:
 +__wrap_memset:
          bnez    a1, .L_memset_non_zero
          csrs    0x816, a0
          addi    x0, a2, 0
+@@ -23,7 +23,7 @@ memset:
+         jr      t0
+ 
+         # csrs 0x816, a1; addi x0, a0, fill_byte; ret; nop
+-        # memset(a0, fill_byte, a2)
++        # __wrap_memset(a0, fill_byte, a2)
+ 
+         # Jump table: 256 entries, each 16 bytes (4 instructions)
+         .p2align 4
 @@ -53,5 +53,5 @@ memset:
          csrs 0x816, a0; addi x0, a2, \val; ret; nop
  .endr
-
+ 
 -        .size memset, .-memset
 +        .size __wrap_memset, .-__wrap_memset
          .section .text.hot,"ax",@progbits
 \ No newline at end of file
 diff --git a/ziskos/entrypoint/src/lib.rs b/ziskos/entrypoint/src/lib.rs
-index 88575d4..781b12a 100644
+index bc8ad6e..94c9c9f 100644
 --- a/ziskos/entrypoint/src/lib.rs
 +++ b/ziskos/entrypoint/src/lib.rs
-@@ -289,6 +289,7 @@ pub mod ziskos {
+@@ -359,6 +359,7 @@ pub mod ziskos {
      use crate::ziskos_definitions::ziskos_config::*;
      use core::arch::asm;
-
+ 
 +    #[cfg(not(feature = "no_entrypoint"))]
      #[no_mangle]
      #[link_section = ".text.init"]
      unsafe extern "C" fn _start() -> ! {
-@@ -339,6 +340,7 @@ pub mod ziskos {
+@@ -417,6 +418,7 @@ pub mod ziskos {
          getrandom::register_custom_getrandom!(zkvm_getrandom);
      }
-
+ 
 +    #[cfg(not(feature = "no_entrypoint"))]
      #[no_mangle]
-     unsafe extern "C" fn _zisk_main() {
+     unsafe extern "C" fn _zisk_main() -> i32 {
          {
-@@ -430,6 +432,12 @@ pub mod ziskos {
+@@ -613,6 +615,12 @@ pub mod ziskos {
          unimplemented!("sys_argv");
      }
-
+ 
 +    #[no_mangle]
 +    extern "C" fn sys_panic(_msg_ptr: *const u8, _msg_len: usize) -> ! {
 +        // Empty implementation - panic handling is done by bflat runtime
 +        loop {}
 +    }
 +
-     pub extern "C" fn sys_print_hex(val: usize, ln: bool) {
+     pub extern "C" fn sys_write_hex(val: usize, ln: bool) {
          let mut buf = [0u8; 19]; // "0x" + 16 hex + \n — stack, no heap
          buf[0] = b'0';
