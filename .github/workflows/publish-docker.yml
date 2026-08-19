@@ -112,18 +112,32 @@ jobs:
       # pil2-stark Makefiles). Hosted runners are a CPU lottery (AVX2-only
       # EPYC vs AVX-512 Ice Lake), so an AVX-512 runner produces binaries
       # that SIGILL on AVX2-only machines. Neuter the avx512 probes in the
-      # fetched git checkouts so images are always AVX2-baseline.
+      # fetched sources so images are always AVX2-baseline.
+      #
+      # Up to zisk v1.0.x the proofman crates were a git dependency, so the
+      # sources land in .cargo/git/checkouts/pil2-proofman-*. Since v1.1.0-alpha
+      # they come from crates.io and the C++ stark tree ships in the
+      # proofman-starks-src crate, unpacked under .cargo/registry/src. Cover both.
       - name: Disable AVX-512
         if: inputs.disable_avx512
         run: |
           cargo fetch
-          files=$(grep -rl avx512 "${CARGO_HOME:-$HOME/.cargo}"/git/checkouts/pil2-proofman-*/ \
-            --include=Makefile --include=build.rs)
+          cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+          roots=$(ls -d "$cargo_home"/git/checkouts/pil2-proofman-*/ \
+                        "$cargo_home"/registry/src/*/proofman-starks-src-*/ \
+                        "$cargo_home"/registry/src/*/proofman-starks-lib-c-*/ 2>/dev/null || true)
+          if [ -z "$roots" ]; then
+            echo "::error::no pil2-proofman sources found under $cargo_home; dependency layout changed — update this step"
+            exit 1
+          fi
+          files=$(echo "$roots" | xargs grep -rl avx512 --include=Makefile --include=build.rs || true)
           if [ -z "$files" ]; then
-            echo "::error::no avx512 probes found in pil2-proofman checkouts; detection moved — update this step"
+            echo "::error::no avx512 probes found in $roots; detection moved — update this step"
             exit 1
           fi
           echo "$files" | xargs sed -i 's/avx512/avx512_disabled/g'
+          echo "Neutered avx512 probes in:"
+          echo "$files"
 
       - name: Build
         run: |
@@ -138,7 +152,17 @@ jobs:
           mkdir -p zisk-dist/bin
           cp ./target/$TARGET/release/cargo-zisk zisk-dist/bin/
           cp ./target/$TARGET/release/ziskemu zisk-dist/bin/
-          cp ./target/$TARGET/release/riscv2zisk zisk-dist/bin/
+          # zisk v1.1.0-alpha renamed the transpiler binary riscv2zisk ->
+          # zisk-transpiler-riscv. Ship whichever the build produced, under both
+          # names, so images stay usable by callers of either.
+          transpiler=$(ls ./target/$TARGET/release/zisk-transpiler-riscv \
+                          ./target/$TARGET/release/riscv2zisk 2>/dev/null | head -n1)
+          if [ -z "$transpiler" ]; then
+            echo "::error::no RISC-V transpiler binary in ./target/$TARGET/release"
+            exit 1
+          fi
+          cp "$transpiler" zisk-dist/bin/zisk-transpiler-riscv
+          cp "$transpiler" zisk-dist/bin/riscv2zisk
           cp ./target/$TARGET/release/zisk-coordinator zisk-dist/bin/
           cp ./target/$TARGET/release/zisk-worker zisk-dist/bin/
           cp ./ziskup/ziskup zisk-dist/bin/
