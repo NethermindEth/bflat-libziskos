@@ -21,7 +21,7 @@ function prepare_repo() {
 
     # Copy custom target spec
     echo "Copying custom target specification..."
-    cp "${SCRIPT_DIR}/riscv64imad-zisk-zkvm-elf.json" . || fail "Failed to copy custom target specification"
+    cp "${SCRIPT_DIR}/riscv64ima-zisk-zkvm-elf.json" . || fail "Failed to copy custom target specification"
 
     # Copy patch file
     echo "Copying entrypoint patch..."
@@ -50,7 +50,7 @@ function build_in_docker() {
             sed -i '3a\\use std::env;' lib-c/build.rs
             sed -i '9a\\    if env::var(\"CARGO_CFG_TARGET_OS\").unwrap_or_default() == \"zkvm\" {\\n        println!(\"cargo:rustc-cfg=feature=\\\\\"no_lib_link\\\\\"\");\\n        return;\\n    }' lib-c/build.rs
 
-            echo 'Building ziskos entrypoint for riscv64imad-zisk-zkvm-elf...'
+            echo 'Building ziskos entrypoint for riscv64ima-zisk-zkvm-elf...'
 
             # zisk v1.0.0-alpha ships a rust-toolchain.toml pinning the 'stable'
             # channel, but build-std requires nightly + rust-src. Drop the override
@@ -75,14 +75,14 @@ function build_in_docker() {
             # actual panic delivery via sys_panic).
             printf '\n#[cfg(all(target_os = \"zkvm\", target_vendor = \"zisk\"))]\n#[panic_handler]\nfn _bflat_panic_handler(_info: &core::panic::PanicInfo) -> ! { loop {} }\n' >> src/lib.rs
 
-            cargo build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
+            cargo build --release --target /workspace/riscv64ima-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
             echo 'Build completed!'
         " || fail "Failed to build ziskos entrypoint"
 
         # Copy the built library
         echo "Copying built library..."
-        BUILT_LIB="target/riscv64imad-zisk-zkvm-elf/release/libziskos.a"
+        BUILT_LIB="target/riscv64ima-zisk-zkvm-elf/release/libziskos.a"
         if [ -f "${BUILT_LIB}" ]; then
             cp "${BUILT_LIB}" "${OUTPUT_DIR}/libziskos.a" || fail "Failed to copy built library"
             echo "Library copied to ${OUTPUT_DIR}/libziskos.a"
