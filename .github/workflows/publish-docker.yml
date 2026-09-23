@@ -7,7 +7,7 @@ on:
         description: Zisk ref
         required: true
         type: string
-        default: v0.17.0
+        default: v1.3.0-alpha
       zisk_repo:
         description: Zisk repository
         required: false
@@ -29,7 +29,7 @@ on:
         description: Zisk ref
         required: true
         type: string
-        default: v0.17.0
+        default: v1.3.0-alpha
       zisk_repo:
         description: Zisk repository
         required: false
