@@ -62,6 +62,10 @@ function build_in_docker() {
             # Apply patch to wrap _start, _zisk_main, memcpy, memmove and replace sys_alloc_aligned
             patch -p1 -l < /workspace/entrypoint.patch || exit 1
 
+            # Rename DMA mem* symbols to __wrap_* (done with sed rather than the
+            # patch so upstream changes to the instruction bodies do not break it)
+            sed -i -E 's/\\b(memcmp|memcpy|memmove|memset)\\b/__wrap_\\1/g' ziskos/entrypoint/src/dma/mem{cmp,cpy,move,set}.s
+
             cd ziskos/entrypoint
 
             # Ensure staticlib output (dropped from crate-type in zisk v0.18.0)
