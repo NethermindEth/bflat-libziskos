@@ -52,6 +52,16 @@ not use the accelerators can be built with the platform files alone.
 
 Use bflat's ability to link to external libraries and provide the link to this repository, or reference the `Nethermind.ZiskOS.Runtime` NuGet package from a .NET project.
 
+## Signature
+
+The release job signs the `.nupkg` before it publishes it
+(`scripts/sign_package.py`, with the GitHub Actions secret
+`BFLAT_SIGNING_KEY`). bflat refuses a package with a bad signature, and an
+unsigned package unless `--allow-unsigned` is given. A local
+`.bflat.manifest` is not checked. See `docs/signing.md` in bflat-riscv64.
+`scripts/sign_package.py` is a copy of the script in bflat-riscv64; keep it
+the same.
+
 ## Building Locally
 
 ### Prerequisites
