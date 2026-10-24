@@ -208,11 +208,54 @@ void zkvm_keccakf(void *state) /* openvm */
 }
 
 
+/* The platform interface (the functions bflat's pal calls). */
+extern void zkvm_platform_exit(long code);
+extern long zkvm_platform_syscall(long number, long a1, long a2, long a3,
+                                  long a4, long a5, long a6);
+extern void *__wrap_inline_bump_alloc_aligned(uint32_t bytes, uint32_t align);
+
+/* musl's syscall, as pal's --wrap=syscall leaves it: a sentinel that proves
+ * zkvm_platform_syscall forwards every register. */
+static long syscall_args[7];
+long __real_syscall(long number, long a1, long a2, long a3, long a4, long a5,
+                    long a6)
+{
+    long args[7] = {number, a1, a2, a3, a4, a5, a6};
+    memcpy(syscall_args, args, sizeof(args));
+    return 4242;
+}
+
+/* pal's zkvm_alloc_or_abort, as a sentinel for the allocator bridge. */
+static uint32_t alloc_bytes, alloc_align;
+static char alloc_block[64];
+void *zkvm_alloc_or_abort(uint32_t bytes, uint32_t align)
+{
+    alloc_bytes = bytes;
+    alloc_align = align;
+    return alloc_block;
+}
+
 int main(void)
 {
     /* One shot: _start clobbers sp/gp and never returns, so it only runs
      * in the child. Any verdict other than OK surfaces as its own code. */
     EXPECT_EXIT(OK, zkvm_module_start());
+
+    /* zkvm_platform_exit: the ZisK exit ecall (a7 == 93) is also Linux
+     * riscv64 __NR_exit, so under qemu-user the child genuinely exits with
+     * the code. */
+    EXPECT_EXIT(42, zkvm_platform_exit(42));
+    EXPECT_EXIT(134, zkvm_platform_exit(134));
+
+    /* zkvm_platform_syscall: a tail call into musl's syscall, every
+     * argument register untouched. */
+    CHECK(zkvm_platform_syscall(999, 1, 2, 3, 4, 5, 6) == 4242);
+    CHECK(syscall_args[0] == 999 && syscall_args[1] == 1 &&
+          syscall_args[6] == 6);
+
+    /* The ziskos allocator bridge: the same arguments, the same order. */
+    CHECK(__wrap_inline_bump_alloc_aligned(40, 32) == (void *)alloc_block);
+    CHECK(alloc_bytes == 40 && alloc_align == 32);
 
 
 

@@ -33,6 +33,8 @@ the platform that `platform/` describes, so bflat itself knows nothing about
 ZisK. `platform/build.sh` builds it into `output/` (`zisk_entry.o`, `zisk.ld`, `zisk_sim.ld`, `zisk.bflat.manifest` and `zisk_sim.bflat.manifest`):
 
 - `entry.S` is the guest's `_start` and the ZisK halt protocol, plus the initial argv/envp/auxv vector that musl's start-up reads.
+- `entry.S` also implements the platform interface that bflat's modules call
+  (bflat itself has no code for any one zkVM): `zkvm_platform_exit` (the `a7 = 93` ecall), `zkvm_platform_syscall` (on to musl: ZisK emulates Linux syscalls) and the bridge of the ziskos Rust allocator onto bflat's heap.
 - the linker script is the ZisK memory map;
 - the platform manifest gives the instruction set, the ABI, the RyuJIT
   options, the defines and the post-link steps, and lists the bflat modules
