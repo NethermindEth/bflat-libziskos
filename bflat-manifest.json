@@ -24,7 +24,7 @@
       },
       {
         "symbol": "zkvm_bls12_g1_msm",
-        "note": "Per-call heap arena around the libziskos accelerators that allocate, which would otherwise leak their scratch memory into the never-freeing heap. The __wrap_ definitions are the accelerator arenas of bflat's pal: keep this list in step with its ZK_ACCEL_ARENA list (src/bflat/modules/pal/module.c)."
+        "note": "Per-call heap arena around the libziskos accelerators that allocate, which would otherwise leak their scratch memory into the never-freeing heap. The __wrap_ definitions are the accelerator arenas of bflat's pal: keep this list in step with its ZK_ACCEL_ARENA list (src/bflat/modules/pal/module.c). The list is measured with ziskemu execution counts (libziskos 1.3.1-alpha), as calls into the allocator bridge per call: modexp ~22, the two pairings 7, KZG 3, the MSMs 2. sha256, ripemd160, blake2f, both ECDSA checks, the curve additions and multiplications and the map-to-curve functions never allocate, so they are not here. No guest calls keccak256 and secp256k1_verify, so they are not measured and stay here. A libziskos upgrade must repeat the measurement."
       },
       "zkvm_bls12_g2_msm",
       "zkvm_bls12_pairing",
