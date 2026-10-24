@@ -144,7 +144,7 @@ function copy_manifest() {
         cp "${ROOT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/libziskos.bflat.manifest" || fail "Failed to copy bflat-manifest.json"
 
         if [ -n "${ZISK_COMMIT}" ] && command -v jq &>/dev/null; then
-            jq --arg hash "${ZISK_COMMIT}" '. + {zisk_ref_hash: $hash}' \
+            jq --arg hash "${ZISK_COMMIT}" '.metadata.zisk_ref_hash = $hash' \
                 "${OUTPUT_DIR}/libziskos.bflat.manifest" > "${OUTPUT_DIR}/libziskos.bflat.manifest.tmp" \
                 && mv "${OUTPUT_DIR}/libziskos.bflat.manifest.tmp" "${OUTPUT_DIR}/libziskos.bflat.manifest"
             echo "Injected zisk_ref_hash: ${ZISK_COMMIT}"

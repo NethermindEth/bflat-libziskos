@@ -77,7 +77,7 @@ The build process:
 5. **Builds the Rust library** with Rust nightly using a custom RISC-V target specification (`riscv64imad-zisk-zkvm-elf`) and `-Z build-std=std,panic_abort`.
 6. **Assembles system call wrappers** from `src/zisk_syscalls/zisk_syscalls.S` with `riscv64-linux-gnu-as --march=rv64ima --mabi=lp64`.
 7. **Merges syscalls into `libziskos.a`** using `riscv64-linux-gnu-ar` and `riscv64-linux-gnu-ranlib`.
-8. **Emits the bflat manifest** (`libziskos.bflat.manifest`), injecting the resolved zisk commit hash as `zisk_ref_hash` when `jq` is available.
+8. **Emits the bflat manifest** (`libziskos.bflat.manifest`), injecting the resolved zisk commit hash as `metadata.zisk_ref_hash` when `jq` is available.
 
 The final `libziskos.a` contains:
 

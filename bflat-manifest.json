@@ -1,13 +1,10 @@
 {
+  "$schema": "https://raw.githubusercontent.com/NethermindEth/bflat-riscv64/master/src/bflat/bflat-manifest.schema.json",
+  "schema": 2,
   "name": "libziskos",
-  "package_version": "1.0.0",
-  "builds": [
-    {
-      "arch": "riscv64",
-      "os": "linux",
-      "libc": "zisk",
-      "static_lib": "libziskos.a",
-      "wrap_symbols": ["memcpy", "memset", "memmove", "memcmp"]
-    }
-  ]
+  "version": "1.0.0",
+  "description": "ZisK accelerators and syscalls (libziskos) for bflat guests",
+  "when": {"arch": "riscv64", "os": "linux", "platform": "zkvm_zisk"},
+  "objects": ["libziskos.a"],
+  "link": {"wrap": ["memcpy", "memset", "memmove", "memcmp"]}
 }
