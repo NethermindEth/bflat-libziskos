@@ -109,7 +109,7 @@
       "noos",
       "guest_subst"
     ],
-    "flags": ["no-console", "no-fpu"],
+    "flags": ["no-console"],
     "linker_script": "zisk.ld",
     "entry": "zisk_entry.o"
   }

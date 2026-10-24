@@ -45,7 +45,6 @@
       "noos",
       "guest_subst"
     ],
-    "flags": ["no-fpu"],
     "linker_script": "zisk_sim.ld",
     "entry": "zisk_entry.o"
   }
