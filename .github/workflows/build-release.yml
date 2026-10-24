@@ -99,13 +99,13 @@ jobs:
           echo "Detected version $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Inject zisk_ref and package_version into manifest
+      - name: Inject zisk_ref and the package version into manifest
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
           MANIFEST=src/runtime/libziskos.bflat.manifest
           jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
-            '. + {zisk_ref: $ref, package_version: $version}' \
+            '.version = $version | .metadata.zisk_ref = $ref' \
             "$MANIFEST" > "$MANIFEST.tmp"
           mv "$MANIFEST.tmp" "$MANIFEST"
 
