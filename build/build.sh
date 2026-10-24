@@ -32,6 +32,7 @@ build_docker_image
 build_in_docker
 build_syscalls
 copy_manifest
+build_platform
 
 echo "Build completed"
 echo "Output: ${OUTPUT_DIR}/libziskos.a"

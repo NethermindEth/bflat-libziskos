@@ -4,7 +4,35 @@
   "name": "libziskos",
   "version": "1.0.0",
   "description": "ZisK accelerators and syscalls (libziskos) for bflat guests",
-  "when": {"arch": "riscv64", "os": "linux", "platform": "zkvm_zisk"},
-  "objects": ["libziskos.a"],
-  "link": {"wrap": ["memcpy", "memset", "memmove", "memcmp"]}
+  "when": {"platform": "zisk"},
+  "objects": [
+    {
+      "file": "libziskos.a",
+      "group": "pre-entry",
+      "note": "In front of the linker script, where bflat linked --extlib static libraries before schema 2."
+    }
+  ],
+  "link": {
+    "wrap": [
+      "memcpy",
+      "memset",
+      "memmove",
+      "memcmp",
+      {
+        "symbol": "inline_bump_alloc_aligned",
+        "note": "ziskos bump-allocator bridge onto the shared heap. The __wrap_ definition is in the pal module of bflat."
+      },
+      {
+        "symbol": "zkvm_bls12_g1_msm",
+        "note": "Per-call heap arena around the libziskos accelerators that allocate, which would otherwise leak their scratch memory into the never-freeing heap. The __wrap_ definitions are in the pal module of bflat: keep this list in step with its ZK_ACCEL_ARENA list (src/bflat/modules/pal/module.c)."
+      },
+      "zkvm_bls12_g2_msm",
+      "zkvm_bls12_pairing",
+      "zkvm_bn254_pairing",
+      "zkvm_keccak256",
+      "zkvm_kzg_point_eval",
+      "zkvm_modexp",
+      "zkvm_secp256k1_verify"
+    ]
+  }
 }

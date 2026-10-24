@@ -137,6 +137,18 @@ function build_syscalls() {
     fi
 }
 
+function build_platform() {
+    # The entry point, the memory maps and the platform manifests
+    # (platform/), assembled in the builder image, which has the RISC-V
+    # binutils.
+    echo "Building the ZisK platform..."
+    docker run --rm \
+        -v "${ROOT_DIR}/platform:/platform" \
+        -v "${OUTPUT_DIR}:/output" \
+        ziskos-builder \
+        bash /platform/build.sh /output || fail "Failed to build the ZisK platform"
+}
+
 function copy_manifest() {
     # Copy manifest
     echo "Copying bflat-manifest.json..."
