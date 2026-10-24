@@ -20,11 +20,11 @@
       "memcmp",
       {
         "symbol": "inline_bump_alloc_aligned",
-        "note": "ziskos bump-allocator bridge onto the shared heap. The __wrap_ definition is in the pal module of bflat."
+        "note": "ziskos bump-allocator bridge onto the shared heap. The __wrap_ definition is in platform/entry.S (zisk_entry.o); it calls pal's zkvm_alloc_or_abort."
       },
       {
         "symbol": "zkvm_bls12_g1_msm",
-        "note": "Per-call heap arena around the libziskos accelerators that allocate, which would otherwise leak their scratch memory into the never-freeing heap. The __wrap_ definitions are in the pal module of bflat: keep this list in step with its ZK_ACCEL_ARENA list (src/bflat/modules/pal/module.c)."
+        "note": "Per-call heap arena around the libziskos accelerators that allocate, which would otherwise leak their scratch memory into the never-freeing heap. The __wrap_ definitions are the accelerator arenas of bflat's pal: keep this list in step with its ZK_ACCEL_ARENA list (src/bflat/modules/pal/module.c)."
       },
       "zkvm_bls12_g2_msm",
       "zkvm_bls12_pairing",
