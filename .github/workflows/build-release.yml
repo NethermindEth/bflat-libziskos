@@ -50,7 +50,33 @@ jobs:
           path: |
             output/libziskos.a
             output/libziskos.bflat.manifest
+            output/zisk_entry.o
+            output/zisk.ld
+            output/zisk_sim.ld
+            output/zisk.bflat.manifest
+            output/zisk_sim.bflat.manifest
           if-no-files-found: error
+
+  platform-tests:
+    # platform/entry.S, the bflat entry point of the guest: _start for the
+    # ZisK entry (which the ZisK simulator platform links too), cross-compiled and run under
+    # qemu-user. The tests came here from bflat-riscv64 with the entry point.
+    name: Platform unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install the RISC-V toolchain and qemu-user
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu qemu-user-static
+
+      - name: Build the platform files
+        run: platform/build.sh
+
+      - name: Run the unit tests
+        run: tests/platform/run.sh
 
   build-nupkg:
     name: Build NuGet package
@@ -79,8 +105,8 @@ jobs:
       - name: Move artifacts to bindings
         run: |
           mkdir -p src/runtime/runtimes/linux-riscv64/native
-          mv libziskos.a src/runtime/runtimes/linux-riscv64/native/
-          mv libziskos.bflat.manifest src/runtime/
+          mv libziskos.a libziskos.bflat.manifest zisk_entry.o zisk.ld zisk_sim.ld zisk.bflat.manifest zisk_sim.bflat.manifest \
+             src/runtime/runtimes/linux-riscv64/native/
 
       - name: Detect version
         id: version
@@ -99,15 +125,16 @@ jobs:
           echo "Detected version $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 
-      - name: Inject zisk_ref and the package version into manifest
+      - name: Inject zisk_ref and the package version into the manifests
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
-          MANIFEST=src/runtime/libziskos.bflat.manifest
-          jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
-            '.version = $version | .metadata.zisk_ref = $ref' \
-            "$MANIFEST" > "$MANIFEST.tmp"
-          mv "$MANIFEST.tmp" "$MANIFEST"
+          for MANIFEST in src/runtime/runtimes/linux-riscv64/native/*.bflat.manifest ; do
+            jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
+              '.version = $version | .metadata.zisk_ref = $ref' \
+              "$MANIFEST" > "$MANIFEST.tmp"
+            mv "$MANIFEST.tmp" "$MANIFEST"
+          done
 
       - name: Pack
         working-directory: src/runtime
@@ -180,6 +207,11 @@ jobs:
             nupkg/*.snupkg
             libziskos/libziskos.a
             libziskos/libziskos.bflat.manifest
+            libziskos/zisk_entry.o
+            libziskos/zisk.ld
+            libziskos/zisk_sim.ld
+            libziskos/zisk.bflat.manifest
+            libziskos/zisk_sim.bflat.manifest
           body: |
             NuGet package for ZisK C# bindings.
 

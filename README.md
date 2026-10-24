@@ -23,7 +23,28 @@ Each release includes:
 
 - `libziskos.a` - static library with ziskos functionality (precompiles) and direct system call wrappers (`zisk_syscalls.S` assembled for rv64ima).
 - `libziskos.bflat.manifest` - bflat manifest describing the library, its target triple, and the resolved zisk commit hash. It also instructs bflat to wrap `memcpy`, `memset`, `memmove`, and `memcmp`.
-- `Nethermind.ZiskOS.Runtime` NuGet package - .NET runtime package that bundles `libziskos.a` and the manifest for consumption from managed projects.
+- `zisk_entry.o`, `zisk.ld`, `zisk_sim.ld`, `zisk.bflat.manifest`, `zisk_sim.bflat.manifest` - the ZisK and ZisK simulator platforms for bflat (see [Platform](#platform)).
+- `Nethermind.ZiskOS.Runtime` NuGet package - .NET runtime package that bundles `libziskos.a`, the platform files and the manifests for consumption from managed projects.
+
+## Platform
+
+This package also defines the ZisK target for bflat: `--libc zisk` selects
+the platform that `platform/` describes, so bflat itself knows nothing about
+ZisK. `platform/build.sh` builds it into `output/` (`zisk_entry.o`, `zisk.ld`, `zisk_sim.ld`, `zisk.bflat.manifest` and `zisk_sim.bflat.manifest`):
+
+- `entry.S` is the guest's `_start` and the ZisK halt protocol, plus the initial argv/envp/auxv vector that musl's start-up reads.
+- the linker script is the ZisK memory map;
+- the platform manifest gives the instruction set, the ABI, the RyuJIT
+  options, the defines and the post-link steps, and lists the bflat modules
+  that the guest needs (format: `docs/manifest.md` in bflat-riscv64).
+
+The package also defines the `zisk_sim` platform: the same entry point with
+the debugging memory map of the ZisK simulator. It links no libziskos.
+
+`--extlib` with a `.bflat.manifest` path reads every `*.bflat.manifest` in that
+directory, so the platform and the bindings come together. A guest that does
+not use the accelerators can be built with the platform files alone.
+`tests/platform/run.sh` runs the unit tests of the entry point under qemu-user.
 
 ## Usage
 

@@ -210,3 +210,6 @@ __marimo__/
 /src/dotnet/bin
 /src/dotnet/obj
 *.o
+
+# Platform unit test builds (tests/platform/run.sh)
+tests/platform/out/
