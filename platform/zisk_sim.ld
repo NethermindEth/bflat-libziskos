@@ -23,7 +23,7 @@ SECTIONS
    * PC-relative auipc/addi pairs, whose reach is +/-2GB. From 0x10000 the fixed
    * cell at 0xBFFBFFF8 is ~2.68GB away and R_RISCV_PCREL_HI20 overflows; 0x50000000
    * keeps the whole 0x50000000..0xBFFC0000 span within +/-2GB. (Real zisk avoids
-   * this by placing text in ROM at 0x80000000.) */
+   * this by placing text in ROM at 0x90000000.) */
   . = 0x50000000;
 
   .text : ALIGN(16)
