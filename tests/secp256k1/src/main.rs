@@ -54,12 +54,6 @@ pub mod syscalls {
         pub y: [u64; 4],
     }
 
-    #[repr(C)]
-    pub struct SyscallSecp256k1AddParams<'a> {
-        pub p1: &'a mut SyscallPoint256,
-        pub p2: &'a SyscallPoint256,
-    }
-
     pub struct SyscallArith256ModParams<'a> {
         pub a: &'a [u64; 4],
         pub b: &'a [u64; 4],
@@ -88,16 +82,16 @@ pub mod syscalls {
         p.y = limbs(&y);
     }
 
-    pub fn syscall_secp256k1_add(params: &mut SyscallSecp256k1AddParams) {
+    pub fn syscall_secp256k1_add(p1: &mut SyscallPoint256, p2: &SyscallPoint256) {
         ADD.fetch_add(1, Relaxed);
         let fp = field_p();
-        let (x1, y1) = check_point("add", params.p1);
-        let (x2, y2) = check_point("add", params.p2);
+        let (x1, y1) = check_point("add", p1);
+        let (x2, y2) = check_point("add", p2);
         assert!(x1 != x2, "PRECONDITION add: equal x");
         let m = ((&y2 + &fp - &y1) % &fp) * inv(&((&x2 + &fp - &x1) % &fp), &fp) % &fp;
         let x3 = (&m * &m + &fp * 2u32 - &x1 - &x2) % &fp;
         let y3 = (&m * ((&x1 + &fp - &x3) % &fp) + &fp - &y1) % &fp;
-        store(params.p1, x3, y3);
+        store(p1, x3, y3);
     }
 
     pub fn syscall_secp256k1_dbl(p: &mut SyscallPoint256) {

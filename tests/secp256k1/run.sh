@@ -1,6 +1,6 @@
 #!/bin/bash
 # Differential test of the patched zisklib secp256k1 recovery on the host.
-# Usage: ZISK_REF=v1.3.2-alpha tests/secp256k1/run.sh [test_ecrecover.py args...]
+# Usage: ZISK_REF=v1.4.0-alpha tests/secp256k1/run.sh [test_ecrecover.py args...]
 set -e
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD="$(cd "${HERE}/../../build" && pwd)"
