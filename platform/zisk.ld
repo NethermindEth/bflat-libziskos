@@ -12,9 +12,18 @@ ENTRY(_start)
 
 MEMORY {
   /* biosrom (xa) : ORIGIN = 0x00001000, LENGTH = 0x1000 */
-  rom   (xa) : ORIGIN = 0x80000000, LENGTH = 0x10000000
   /*
-   * Zisk RAM map (zisk/core/src/mem.rs, v1.3):
+   * Zisk ROM map (zisk/core/src/mem.rs, v1.4):
+   *   INPUT_ADDR          = 0x10000000   program input, MAX_INPUT_SIZE 2 GiB
+   *   ROM_ADDR            = 0x90000000   program ROM, ROM_SIZE = 128 MiB
+   *   ZISKLIB_ROM_ADDR    = 0x97e00000   1 MiB, ZisK library code
+   *   FLOAT_LIB_ROM_ADDR  = 0x97f00000   1 MiB, float library code
+   *   STACK_GUARD_ADDR    = 0x98000000   unmapped up to RAM_ADDR
+   * The program ROM ends where the ZisK library ROM begins.
+   */
+  rom   (xa) : ORIGIN = 0x90000000, LENGTH = 0x97e00000 - 0x90000000
+  /*
+   * Zisk RAM map (zisk/core/src/mem.rs, v1.4):
    *   RAM_ADDR            = 0xa0000000   program stack, STACK_SIZE = 4 MiB
    *   SYS_ADDR            = 0xa0400000   registers, UART, DMA params, CSRs
    *   OUTPUT_ADDR         = 0xa0410000   public output, OUTPUT_MAX_SIZE 128 KiB
