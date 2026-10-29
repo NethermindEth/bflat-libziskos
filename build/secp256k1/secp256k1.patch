@@ -1,5 +1,5 @@
 diff --git a/ziskos/entrypoint/src/zisklib/lib/secp256k1/ecdsa.rs b/ziskos/entrypoint/src/zisklib/lib/secp256k1/ecdsa.rs
-index ad4113e..54c8c61 100644
+index 9d445680e..e5bec5030 100644
 --- a/ziskos/entrypoint/src/zisklib/lib/secp256k1/ecdsa.rs
 +++ b/ziskos/entrypoint/src/zisklib/lib/secp256k1/ecdsa.rs
 @@ -1,6 +1,5 @@
@@ -10,7 +10,7 @@ index ad4113e..54c8c61 100644
  };
  
  use super::{
-@@ -219,6 +218,59 @@ pub(crate) unsafe fn secp256k1_ecdsa_verify_c(
+@@ -251,6 +250,59 @@ pub(crate) unsafe fn secp256k1_ecdsa_verify_c(
      )
  }
  
@@ -70,7 +70,7 @@ index ad4113e..54c8c61 100644
  /// C-compatible wrapper for ecdsa_recover_secp256k1
  ///
  /// # Safety
-@@ -244,17 +296,9 @@ pub(crate) unsafe fn secp256k1_ecdsa_recover_c(
+@@ -276,17 +328,9 @@ pub(crate) unsafe fn secp256k1_ecdsa_recover_c(
      output: *mut u8,
      #[cfg(feature = "hints")] hints: &mut Vec<u64>,
  ) -> u8 {
@@ -91,7 +91,7 @@ index ad4113e..54c8c61 100644
  
      // Perform ecrecover
      match ecdsa_recover_secp256k1(
-@@ -267,10 +311,8 @@ pub(crate) unsafe fn secp256k1_ecdsa_recover_c(
+@@ -299,10 +343,8 @@ pub(crate) unsafe fn secp256k1_ecdsa_recover_c(
      ) {
          Ok(pk) => {
              // pk is [u64; 8]: x in limbs [0..4] and y in limbs [4..8], little-endian
@@ -105,7 +105,7 @@ index ad4113e..54c8c61 100644
          }
          Err(code) => code,
 diff --git a/ziskos/entrypoint/src/zisklib/lib/secp256k1/glv.rs b/ziskos/entrypoint/src/zisklib/lib/secp256k1/glv.rs
-index bbd8af4..f7db2fa 100644
+index bbd8af406..f7db2fabd 100644
 --- a/ziskos/entrypoint/src/zisklib/lib/secp256k1/glv.rs
 +++ b/ziskos/entrypoint/src/zisklib/lib/secp256k1/glv.rs
 @@ -4,25 +4,23 @@ use alloc::vec::Vec;
@@ -482,7 +482,7 @@ index bbd8af4..f7db2fa 100644
  
  /// GLV-accelerated multi-scalar multiplication: Σᵢ kᵢ·Pᵢ.
 diff --git a/ziskos/entrypoint/src/zisklib/lib/secp256k1/mod.rs b/ziskos/entrypoint/src/zisklib/lib/secp256k1/mod.rs
-index 799b732..9d91cc4 100644
+index 799b73221..9d91cc434 100644
 --- a/ziskos/entrypoint/src/zisklib/lib/secp256k1/mod.rs
 +++ b/ziskos/entrypoint/src/zisklib/lib/secp256k1/mod.rs
 @@ -12,9 +12,11 @@ mod constants;
