@@ -49,7 +49,7 @@
       {
         "value": "JitZkCsrPInvokes=syscall_keccak_f:800,syscall_arith256:801,syscall_arith256_mod:802,syscall_sha256_f:805,memmove:813,memcpy:813,zkvm_jump_dest_bitmap:81c",
         "when": {"optimize": true},
-        "note": "dotnet-riscv fixup perf-56: emit these libziskos P/Invokes as the single csrrs of the precompile (three-argument entries as csrrs + add x0), with no register kills. CSR numbers in hex."
+        "note": "dotnet-riscv fixup perf-56: emit these libziskos P/Invokes as the single csrrs of the precompile (three-argument entries as csrrs + add x0), with no register kills. CSR numbers in hex. Since ZisK 1.4 syscall_sha256_f takes two operands (csrs a; add x0, b, x0), a shape the JIT does not emit yet, so its two-argument P/Invoke stays an ordinary call into libziskos; a one-argument caller is the old ABI and the transpiler rejects it."
       },
       {
         "value": "JitInlineAdditionalMultiplier=3",
