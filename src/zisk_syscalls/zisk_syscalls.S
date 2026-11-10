@@ -129,6 +129,14 @@ ZKVM_LIBCALL      zkvm_u256_le_exp,           0x88B
  * the Rust crate still exports. */
 ZKVM_LIBCALL      zisklib_keccak256,          0x850
 
+/* SHA-256 of a byte string (data a0, length a1, 32-byte digest a2), ZisK's own routine
+ * (ziskasm/zisklib/zkvm/sha256.zisk); named apart from ziskos' zkvm_sha256 as above. */
+ZKVM_LIBCALL      zisklib_sha256,             0x851
+
+/* EIP-198 modular exponentiation (base a0, base_len a1, exp a2, exp_len a3, mod a4,
+ * mod_len a5, output a6), ZisK's own routine (ziskasm/zisklib/zkvm/modexp.zisk). */
+ZKVM_LIBCALL      zisklib_modexp,             0x856
+
 /* secp256k1 public-key recovery (hash a0, r || s a1, recovery id a2, 64-byte key a3),
  * ZisK's own routine; returns 0 on success. */
 ZKVM_LIBCALL      zisklib_secp256k1_ecrecover, 0x854
