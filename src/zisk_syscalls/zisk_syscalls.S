@@ -133,13 +133,25 @@ ZKVM_LIBCALL      zisklib_keccak256,          0x850
  * (ziskasm/zisklib/zkvm/sha256.zisk); named apart from ziskos' zkvm_sha256 as above. */
 ZKVM_LIBCALL      zisklib_sha256,             0x851
 
+/* RIPEMD-160 of a byte string (data a0, length a1, 32-byte output a2 with the 20-byte digest
+ * right-aligned), ZisK's own routine (ziskasm/zisklib/zkvm/ripemd160.zisk). */
+ZKVM_LIBCALL      zisklib_ripemd160,          0x852
+
 /* EIP-198 modular exponentiation (base a0, base_len a1, exp a2, exp_len a3, mod a4,
  * mod_len a5, output a6), ZisK's own routine (ziskasm/zisklib/zkvm/modexp.zisk). */
 ZKVM_LIBCALL      zisklib_modexp,             0x856
 
+/* BLAKE2b compression (rounds a0, 64-byte state a1, 128-byte message a2, 16-byte offset a3,
+ * final-block flag a4), ZisK's own routine (ziskasm/zisklib/zkvm/blake2f.zisk). */
+ZKVM_LIBCALL      zisklib_blake2f,            0x85A
+
 /* secp256k1 public-key recovery (hash a0, r || s a1, recovery id a2, 64-byte key a3),
  * ZisK's own routine; returns 0 on success. */
 ZKVM_LIBCALL      zisklib_secp256k1_ecrecover, 0x854
+
+/* secp256r1 (P-256) ECDSA verification (hash a0, r || s a1, x || y a2, bool out a3), ZisK's own
+ * routine (ziskasm/zisklib/zkvm/secp256r1.zisk); returns 0 on success. */
+ZKVM_LIBCALL      zisklib_secp256r1_verify,   0x855
 
 /* BN254, KZG and BLS12-381 with ZisK's own routines (ziskasm/zisklib/zkvm/{bn254,bls12_381}.zisk), in the EF
  * zkVM accelerator C ABI of the Rust crate's zkvm_* exports of the same names; return 0 on success. */
