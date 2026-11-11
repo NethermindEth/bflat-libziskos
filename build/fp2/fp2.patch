@@ -1,0 +1,354 @@
+diff --git a/ziskos/entrypoint/src/zisklib/lib/bls12_381/fp2.rs b/ziskos/entrypoint/src/zisklib/lib/bls12_381/fp2.rs
+index fab86725e..2ce9ee74f 100644
+--- a/ziskos/entrypoint/src/zisklib/lib/bls12_381/fp2.rs
++++ b/ziskos/entrypoint/src/zisklib/lib/bls12_381/fp2.rs
+@@ -10,12 +10,6 @@ use crate::{
+ 
+ use super::constants::{NQR_FP2, P, P_MINUS_ONE};
+ 
+-/// Helper to convert from array representation to syscall representation
+-#[inline]
+-fn to_syscall_complex(limbs: &[u64; 12]) -> SyscallComplex384 {
+-    SyscallComplex384 { x: limbs[0..6].try_into().unwrap(), y: limbs[6..12].try_into().unwrap() }
+-}
+-
+ #[inline]
+ fn to_syscall_complex_x(limbs: &[u64; 6]) -> SyscallComplex384 {
+     SyscallComplex384 { x: *limbs, y: [0u64; 6] }
+@@ -35,6 +29,20 @@ fn from_syscall_complex(complex: &SyscallComplex384) -> [u64; 12] {
+     result
+ }
+ 
++/// Views an Fp2 limb array as the syscall representation, which has the same `#[repr(C)]` layout.
++#[inline(always)]
++fn as_syscall_complex(limbs: &[u64; 12]) -> &SyscallComplex384 {
++    // SAFETY: `SyscallComplex384` is `#[repr(C)]` with two `[u64; 6]` fields, so it has the layout of `[u64; 12]`.
++    unsafe { &*(limbs as *const [u64; 12]).cast::<SyscallComplex384>() }
++}
++
++/// Mutable counterpart of [`as_syscall_complex`].
++#[inline(always)]
++fn as_syscall_complex_mut(limbs: &mut [u64; 12]) -> &mut SyscallComplex384 {
++    // SAFETY: as in `as_syscall_complex`.
++    unsafe { &mut *(limbs as *mut [u64; 12]).cast::<SyscallComplex384>() }
++}
++
+ /// Sign function in the degree 2 extension of the BLS12-381 curve
+ pub fn sgn0_fp2_bls12_381(x: &[u64; 12]) -> u64 {
+     let sign_0 = x[0] & 1;
+@@ -50,15 +58,14 @@ pub fn add_fp2_bls12_381(
+     b: &[u64; 12],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(b);
++    let mut f1 = *a;
+     syscall_bls12_381_complex_add(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(b),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Doubling in the degree 2 extension of the BLS12-381 curve
+@@ -67,15 +74,14 @@ pub fn dbl_fp2_bls12_381(
+     a: &[u64; 12],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(a);
++    let mut f1 = *a;
+     syscall_bls12_381_complex_add(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(a),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Negation in the degree 2 extension of the BLS12-381 curve
+@@ -84,15 +90,15 @@ pub fn neg_fp2_bls12_381(
+     a: &[u64; 12],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
++    let mut f1 = *a;
+     let f2 = to_syscall_complex_x(&P_MINUS_ONE);
+     syscall_bls12_381_complex_mul(
+-        &mut f1,
++        as_syscall_complex_mut(&mut f1),
+         &f2,
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Subtraction in the degree 2 extension of the BLS12-381 curve
+@@ -102,15 +108,14 @@ pub fn sub_fp2_bls12_381(
+     b: &[u64; 12],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(b);
++    let mut f1 = *a;
+     syscall_bls12_381_complex_sub(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(b),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Multiplication in the degree 2 extension of the BLS12-381 curve
+@@ -120,15 +125,14 @@ pub fn mul_fp2_bls12_381(
+     b: &[u64; 12],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(b);
++    let mut f1 = *a;
+     syscall_bls12_381_complex_mul(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(b),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Scalar multiplication in the degree 2 extension of the BLS12-381 curve
+@@ -138,16 +142,16 @@ pub fn scalar_mul_fp2_bls12_381(
+     b: &[u64; 6],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
++    let mut f1 = *a;
+     let f2 = to_syscall_complex_x(b);
+ 
+     syscall_bls12_381_complex_mul(
+-        &mut f1,
++        as_syscall_complex_mut(&mut f1),
+         &f2,
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Squaring in the degree 2 extension of the BLS12-381 curve
+@@ -156,15 +160,14 @@ pub fn square_fp2_bls12_381(
+     a: &[u64; 12],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 12] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(a);
++    let mut f1 = *a;
+     syscall_bls12_381_complex_mul(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(a),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Square root in the degree 2 extension of the BLS12-381 curve
+diff --git a/ziskos/entrypoint/src/zisklib/lib/bn254/fp2.rs b/ziskos/entrypoint/src/zisklib/lib/bn254/fp2.rs
+index cfdddf419..d6649a059 100644
+--- a/ziskos/entrypoint/src/zisklib/lib/bn254/fp2.rs
++++ b/ziskos/entrypoint/src/zisklib/lib/bn254/fp2.rs
+@@ -10,12 +10,6 @@ use crate::{
+ 
+ use super::constants::{P, P_MINUS_ONE};
+ 
+-/// Helper to convert from array representation to syscall representation
+-#[inline]
+-fn to_syscall_complex(limbs: &[u64; 8]) -> SyscallComplex256 {
+-    SyscallComplex256 { x: limbs[0..4].try_into().unwrap(), y: limbs[4..8].try_into().unwrap() }
+-}
+-
+ #[inline]
+ fn to_syscall_complex_x(limbs: &[u64; 4]) -> SyscallComplex256 {
+     SyscallComplex256 { x: *limbs, y: [0u64; 4] }
+@@ -35,6 +29,20 @@ fn from_syscall_complex(complex: &SyscallComplex256) -> [u64; 8] {
+     result
+ }
+ 
++/// Views an Fp2 limb array as the syscall representation, which has the same `#[repr(C)]` layout.
++#[inline(always)]
++fn as_syscall_complex(limbs: &[u64; 8]) -> &SyscallComplex256 {
++    // SAFETY: `SyscallComplex256` is `#[repr(C)]` with two `[u64; 4]` fields, so it has the layout of `[u64; 8]`.
++    unsafe { &*(limbs as *const [u64; 8]).cast::<SyscallComplex256>() }
++}
++
++/// Mutable counterpart of [`as_syscall_complex`].
++#[inline(always)]
++fn as_syscall_complex_mut(limbs: &mut [u64; 8]) -> &mut SyscallComplex256 {
++    // SAFETY: as in `as_syscall_complex`.
++    unsafe { &mut *(limbs as *mut [u64; 8]).cast::<SyscallComplex256>() }
++}
++
+ /// Addition in the degree 2 extension of the BN254 curve
+ #[inline]
+ pub fn add_fp2_bn254(
+@@ -42,46 +50,44 @@ pub fn add_fp2_bn254(
+     b: &[u64; 8],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(b);
++    let mut f1 = *a;
+ 
+     syscall_bn254_complex_add(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(b),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Doubling in the degree 2 extension of the BN254 curve
+ #[inline]
+ pub fn dbl_fp2_bn254(a: &[u64; 8], #[cfg(feature = "hints")] hints: &mut Vec<u64>) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(a);
++    let mut f1 = *a;
+ 
+     syscall_bn254_complex_add(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(a),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Negation in the degree 2 extension of the BN254 curve
+ #[inline]
+ pub fn neg_fp2_bn254(a: &[u64; 8], #[cfg(feature = "hints")] hints: &mut Vec<u64>) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
++    let mut f1 = *a;
+     let f2 = to_syscall_complex_x(&P_MINUS_ONE);
+ 
+     syscall_bn254_complex_mul(
+-        &mut f1,
++        as_syscall_complex_mut(&mut f1),
+         &f2,
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Subtraction in the degree 2 extension of the BN254 curve
+@@ -91,16 +97,15 @@ pub fn sub_fp2_bn254(
+     b: &[u64; 8],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(b);
++    let mut f1 = *a;
+ 
+     syscall_bn254_complex_sub(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(b),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Multiplication in the degree 2 extension of the BN254 curve
+@@ -110,16 +115,15 @@ pub fn mul_fp2_bn254(
+     b: &[u64; 8],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(b);
++    let mut f1 = *a;
+ 
+     syscall_bn254_complex_mul(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(b),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Scalar multiplication in the degree 2 extension of the BN254 curve
+@@ -129,31 +133,30 @@ pub fn scalar_mul_fp2_bn254(
+     b: &[u64; 4],
+     #[cfg(feature = "hints")] hints: &mut Vec<u64>,
+ ) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
++    let mut f1 = *a;
+     let f2 = to_syscall_complex_x(b);
+ 
+     syscall_bn254_complex_mul(
+-        &mut f1,
++        as_syscall_complex_mut(&mut f1),
+         &f2,
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Squaring in the degree 2 extension of the BN254 curve
+ #[inline]
+ pub fn square_fp2_bn254(a: &[u64; 8], #[cfg(feature = "hints")] hints: &mut Vec<u64>) -> [u64; 8] {
+-    let mut f1 = to_syscall_complex(a);
+-    let f2 = to_syscall_complex(a);
++    let mut f1 = *a;
+ 
+     syscall_bn254_complex_mul(
+-        &mut f1,
+-        &f2,
++        as_syscall_complex_mut(&mut f1),
++        as_syscall_complex(a),
+         #[cfg(feature = "hints")]
+         hints,
+     );
+-    from_syscall_complex(&f1)
++    f1
+ }
+ 
+ /// Inversion in the degree 2 extension of the BN254 curve

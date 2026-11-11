@@ -1,5 +1,14 @@
 FROM rust:latest
 
+# Runtime shared libraries the prebuilt zisk binaries are dynamically linked
+# against (cargo-zisk/ziskemu link libsodium, OpenMP and OpenMPI).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    libsodium23 \
+    libopenmpi40 \
+    libomp5 \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --chmod=0755 zisk/bin/ /root/.zisk/bin/
 COPY zisk/zisk/ /root/.zisk/zisk/
 

@@ -14,7 +14,7 @@ on:
       zisk_ref:
         description: Zisk ref
         type: string
-        default: v0.17.0
+        default: v1.4.0-alpha
       build_docker:
         description: Build ZisK Docker image
         type: boolean
@@ -23,16 +23,25 @@ on:
 env:
   ZISK_REF: ${{ inputs.zisk_ref }}
 
+permissions:
+  contents: read
+
 jobs:
   build-ziskos:
     name: Build ziskos
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Check secp256k1 tables
+        run: python3 build/secp256k1/gen_tables.py --check
+
+      - name: Test secp256k1 recovery
+        run: tests/secp256k1/run.sh
 
       - name: Build static library
         run: ./build/build.sh
@@ -44,7 +53,33 @@ jobs:
           path: |
             output/libziskos.a
             output/libziskos.bflat.manifest
+            output/zisk_entry.o
+            output/zisk.ld
+            output/zisk_sim.ld
+            output/zisk.bflat.manifest
+            output/zisk_sim.bflat.manifest
           if-no-files-found: error
+
+  platform-tests:
+    # platform/entry.S, the bflat entry point of the guest: _start for the
+    # ZisK entry (which the ZisK simulator platform links too), cross-compiled and run under
+    # qemu-user. The tests came here from bflat-riscv64 with the entry point.
+    name: Platform unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install the RISC-V toolchain and qemu-user
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu qemu-user-static
+
+      - name: Build the platform files
+        run: platform/build.sh
+
+      - name: Run the unit tests
+        run: tests/platform/run.sh
 
   build-nupkg:
     name: Build NuGet package
@@ -53,13 +88,13 @@ jobs:
     permissions:
       contents: read
     outputs:
-      version: ${{ steps.pkg.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
 
       - name: Download libziskos artifact
         uses: actions/download-artifact@v8
@@ -69,46 +104,76 @@ jobs:
       - name: Move artifacts to bindings
         run: |
           mkdir -p src/runtime/runtimes/linux-riscv64/native
-          mv libziskos.a src/runtime/runtimes/linux-riscv64/native/
-          mv libziskos.bflat.manifest src/runtime/
+          mv libziskos.a libziskos.bflat.manifest zisk_entry.o zisk.ld zisk_sim.ld zisk.bflat.manifest zisk_sim.bflat.manifest \
+             src/runtime/runtimes/linux-riscv64/native/
 
-      - name: Inject zisk_ref and package_version into manifest
+      - name: Detect version
+        id: version
         run: |
-          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' src/runtime/Directory.Build.props | tr -d '[:space:]')
-          SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' src/runtime/Directory.Build.props | tr -d '[:space:]')
-          VERSION="$PREFIX${SUFFIX:+-$SUFFIX}"
+          # Version tag (v0.17.0, v0.18.0-rc.1): tag without v + .<run>
+          # Commit hash: 0.0.0-dev-<short hash>.<run>
+          # Branch: 0.0.0-dev-<branch>.<run>
+          if [[ "$ZISK_REF" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$ ]]; then
+            version="${BASH_REMATCH[1]}"
+          elif [[ "$ZISK_REF" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            version="0.0.0-dev-${ZISK_REF:0:7}"
+          else
+            version="0.0.0-dev-$(printf '%s' "$ZISK_REF" | tr -c '0-9A-Za-z-' '-')"
+          fi
+          version+=".${GITHUB_RUN_NUMBER}"
+          echo "Detected version $version"
+          echo "version=$version" >> $GITHUB_OUTPUT
 
-          MANIFEST=src/runtime/libziskos.bflat.manifest
-          jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
-            '. + {zisk_ref: $ref, package_version: $version}' \
-            "$MANIFEST" > "$MANIFEST.tmp"
-          mv "$MANIFEST.tmp" "$MANIFEST"
+      # A run that is run again keeps its run number, and with it the
+      # version. Its publish jobs would replace the files of the release
+      # that has the version already. Start a new run instead.
+      - name: Check that the release does not exist
+        if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 ; then
+            echo "::error::the release v$VERSION exists already: start a new run"
+            exit 1
+          fi
+
+      - name: Inject zisk_ref and the package version into the manifests
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          for MANIFEST in src/runtime/runtimes/linux-riscv64/native/*.bflat.manifest ; do
+            jq --arg ref "$ZISK_REF" --arg version "$VERSION" \
+              '.version = $version | .metadata.zisk_ref = $ref' \
+              "$MANIFEST" > "$MANIFEST.tmp"
+            mv "$MANIFEST.tmp" "$MANIFEST"
+          done
 
       - name: Pack
         working-directory: src/runtime
-        run: dotnet pack Nethermind.ZiskOS.Runtime.csproj -c release
-
-      - name: Publish NuGet package
-        if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
-        working-directory: src/runtime
         run: |
-          dotnet nuget push ./artifacts/package/release/*.nupkg \
-            -k ${{ inputs.publish == 'Staging' && secrets.NUGETTEST_API_KEY || secrets.NUGET_API_KEY }} \
-            -s ${{ inputs.publish == 'Staging' && 'https://apiint.nugettest.org/v3/index.json' || 'https://api.nuget.org/v3/index.json' }}
+          dotnet pack Nethermind.ZiskOS.Runtime.csproj -c release \
+            -p:Version=${{ steps.version.outputs.version }}
 
-      - name: Get package version
-        id: pkg
+      # The lists of the package entries, for the sign job (docs/signing.md
+      # in bflat-riscv64). This job has no key: the sign job signs the lists,
+      # and the publish job adds the signatures to the package.
+      - name: List the package entries
         working-directory: src/runtime
-        run: |
-          PKG=$(ls ./artifacts/package/release/*.nupkg | head -1)
-          VERSION=$(basename "$PKG" .nupkg | sed 's/^Nethermind\.ZiskOS\.Runtime\.//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        run: python3 ../../scripts/sign_package.py list-nupkg ../../signature ./artifacts/package/release/*.nupkg
 
       - name: Upload nupkg artifact
         uses: actions/upload-artifact@v7
         with:
-          name: nupkg
+          name: nupkg-unsigned
           path: src/runtime/artifacts/package/release/*.nupkg
+          if-no-files-found: error
+
+      - name: Upload the lists
+        uses: actions/upload-artifact@v7
+        with:
+          name: bflat-signature-lists
+          path: signature/*.sha256
           if-no-files-found: error
 
   publish-docker:
@@ -116,14 +181,87 @@ jobs:
     if: inputs.build_docker
     needs: build-nupkg
     uses: ./.github/workflows/publish-docker.yml
+    permissions:
+      contents: read
+      id-token: write
     with:
       zisk_ref: ${{ inputs.zisk_ref }}
     secrets: inherit
 
+  # The private key is only in the sign job, which runs no build
+  # (docs/signing.md in bflat-riscv64).
+  sign:
+    name: Sign the package
+    if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
+    needs: build-nupkg
+    permissions: {}
+    uses: NethermindEth/bflat-riscv64/.github/workflows/sign.yml@34a3e73ad5b2f34a868f5793172dc4a3a97bf382 # master
+    with:
+      lists: bflat-signature-lists
+    secrets:
+      BFLAT_SIGNING_KEY: ${{ secrets.BFLAT_SIGNING_KEY }}
+
+  publish-nupkg:
+    name: Publish NuGet package
+    if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NUGET_URL: ${{ inputs.publish == 'Staging' && 'https://int.nugettest.org' || 'https://www.nuget.org' }}
+      NUGET_SOURCE: ${{ inputs.publish == 'Staging' && 'https://apiint.nugettest.org' || 'https://api.nuget.org' }}/v3/index.json
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+
+      - name: Download nupkg artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: nupkg-unsigned
+          path: nupkg
+
+      - name: Download the signatures
+        uses: actions/download-artifact@v8
+        with:
+          name: bflat-signatures
+          path: signature
+
+      # Each package must agree with the list that was signed, and the
+      # signature must be valid for the public key, before the push.
+      - name: Add the signatures
+        env:
+          BFLAT_SIGNING_PUBLIC_KEY: ${{ vars.BFLAT_SIGNING_PUBLIC_KEY }}
+        run: python3 scripts/sign_package.py embed signature nupkg/*.nupkg
+
+      - name: NuGet login
+        uses: nuget/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+          audience: ${{ env.NUGET_URL }}
+          token-service-url: ${{ env.NUGET_URL }}/api/v2/token
+
+      - name: Publish NuGet package
+        run: |
+          dotnet nuget push nupkg/*.nupkg \
+            -k "${{ steps.login.outputs.NUGET_API_KEY }}" -s ${{ env.NUGET_SOURCE }}
+
+      - name: Upload nupkg artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: nupkg/*.nupkg
+          if-no-files-found: error
+
   publish-nupkg-github:
     name: Publish to GitHub
     if: github.event_name == 'workflow_dispatch' && inputs.publish != 'No'
-    needs: build-nupkg
+    needs: [build-nupkg, publish-nupkg]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -141,8 +279,10 @@ jobs:
           path: libziskos
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          # The commit that was built; the default is the head of the default branch.
+          target_commitish: ${{ github.sha }}
           tag_name: v${{ needs.build-nupkg.outputs.version }}
           name: Nethermind.ZiskOS.Runtime ${{ needs.build-nupkg.outputs.version }}
           files: |
@@ -150,6 +290,11 @@ jobs:
             nupkg/*.snupkg
             libziskos/libziskos.a
             libziskos/libziskos.bflat.manifest
+            libziskos/zisk_entry.o
+            libziskos/zisk.ld
+            libziskos/zisk_sim.ld
+            libziskos/zisk.bflat.manifest
+            libziskos/zisk_sim.bflat.manifest
           body: |
             NuGet package for ZisK C# bindings.
 

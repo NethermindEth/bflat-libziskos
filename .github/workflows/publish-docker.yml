@@ -7,17 +7,47 @@ on:
         description: Zisk ref
         required: true
         type: string
-        default: v0.17.0
+        default: v1.3.0-alpha
+      zisk_repo:
+        description: Zisk repository
+        required: false
+        type: string
+        default: 0xPolygonHermez/zisk
+      float:
+        description: Build with float support (zisk-core/float) and publish to nethermindeth/zisk-float
+        required: false
+        type: boolean
+        default: false
+      disable_avx512:
+        description: Force AVX2-baseline build (neuter pil2-proofman AVX-512 detection)
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       zisk_ref:
         description: Zisk ref
         required: true
         type: string
-        default: v0.17.0
+        default: v1.3.0-alpha
+      zisk_repo:
+        description: Zisk repository
+        required: false
+        type: string
+        default: 0xPolygonHermez/zisk
+      float:
+        description: Build with float support (zisk-core/float) and publish to nethermindeth/zisk-float
+        required: false
+        type: boolean
+        default: false
+      disable_avx512:
+        description: Force AVX2-baseline build (neuter pil2-proofman AVX-512 detection)
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-float-${{ inputs.float }}
   cancel-in-progress: true
 
 jobs:
@@ -35,7 +65,7 @@ jobs:
       - name: Check out zisk repository
         uses: actions/checkout@v6
         with:
-          repository: 0xPolygonHermez/zisk
+          repository: ${{ inputs.zisk_repo || '0xPolygonHermez/zisk' }}
           ref: ${{ inputs.zisk_ref }}
 
       - name: Check repository reference
@@ -57,12 +87,15 @@ jobs:
         with:
           script: |
             const ref = '${{ inputs.zisk_ref }}'.replace(/^refs\/tags\//, '');
-            const { data } = await github.rest.repos.getLatestRelease({
-              owner: '0xPolygonHermez',
-              repo: 'zisk',
-            });
+            const [owner, repo] = '${{ inputs.zisk_repo || '0xPolygonHermez/zisk' }}'.split('/');
 
-            core.setOutput('latest', ref === data.tag_name);
+            try {
+              const { data } = await github.rest.repos.getLatestRelease({ owner, repo });
+              core.setOutput('latest', ref === data.tag_name);
+            } catch (e) {
+              // Forks without releases have no "latest"
+              core.setOutput('latest', false);
+            }
 
       - name: Install Rust toolchain
         run: |
@@ -74,15 +107,62 @@ jobs:
         working-directory: tools/test-env
         run: ./install_deps.sh
 
+      # pil2-proofman bakes the build host's SIMD level into the stark C++
+      # library (/proc/cpuinfo probes in starks-lib-c/build.rs and the
+      # pil2-stark Makefiles). Hosted runners are a CPU lottery (AVX2-only
+      # EPYC vs AVX-512 Ice Lake), so an AVX-512 runner produces binaries
+      # that SIGILL on AVX2-only machines. Neuter the avx512 probes in the
+      # fetched sources so images are always AVX2-baseline.
+      #
+      # Up to zisk v1.0.x the proofman crates were a git dependency, so the
+      # sources land in .cargo/git/checkouts/pil2-proofman-*. Since v1.1.0-alpha
+      # they come from crates.io and the C++ stark tree ships in the
+      # proofman-starks-src crate, unpacked under .cargo/registry/src. Cover both.
+      - name: Disable AVX-512
+        if: inputs.disable_avx512
+        run: |
+          cargo fetch
+          cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+          roots=$(ls -d "$cargo_home"/git/checkouts/pil2-proofman-*/ \
+                        "$cargo_home"/registry/src/*/proofman-starks-src-*/ \
+                        "$cargo_home"/registry/src/*/proofman-starks-lib-c-*/ 2>/dev/null || true)
+          if [ -z "$roots" ]; then
+            echo "::error::no pil2-proofman sources found under $cargo_home; dependency layout changed — update this step"
+            exit 1
+          fi
+          files=$(echo "$roots" | xargs grep -rl avx512 --include=Makefile --include=build.rs || true)
+          if [ -z "$files" ]; then
+            echo "::error::no avx512 probes found in $roots; detection moved — update this step"
+            exit 1
+          fi
+          echo "$files" | xargs sed -i 's/avx512/avx512_disabled/g'
+          echo "Neutered avx512 probes in:"
+          echo "$files"
+
       - name: Build
-        run: cargo build --release --target $TARGET
+        run: |
+          FEATURES=""
+          if [ "${{ inputs.float }}" = "true" ]; then
+            FEATURES="--features zisk-core/float"
+          fi
+          cargo build --release --target $TARGET $FEATURES
 
       - name: Pack binaries
         run: |
           mkdir -p zisk-dist/bin
           cp ./target/$TARGET/release/cargo-zisk zisk-dist/bin/
           cp ./target/$TARGET/release/ziskemu zisk-dist/bin/
-          cp ./target/$TARGET/release/riscv2zisk zisk-dist/bin/
+          # zisk v1.1.0-alpha renamed the transpiler binary riscv2zisk ->
+          # zisk-transpiler-riscv. Ship whichever the build produced, under both
+          # names, so images stay usable by callers of either.
+          transpiler=$(ls ./target/$TARGET/release/zisk-transpiler-riscv \
+                          ./target/$TARGET/release/riscv2zisk 2>/dev/null | head -n1)
+          if [ -z "$transpiler" ]; then
+            echo "::error::no RISC-V transpiler binary in ./target/$TARGET/release"
+            exit 1
+          fi
+          cp "$transpiler" zisk-dist/bin/zisk-transpiler-riscv
+          cp "$transpiler" zisk-dist/bin/riscv2zisk
           cp ./target/$TARGET/release/zisk-coordinator zisk-dist/bin/
           cp ./target/$TARGET/release/zisk-worker zisk-dist/bin/
           cp ./ziskup/ziskup zisk-dist/bin/
@@ -91,6 +171,9 @@ jobs:
           mkdir -p zisk-dist/zisk/emulator-asm/src
           cp -r ./emulator-asm/src zisk-dist/zisk/emulator-asm
           cp -r ./lib-c/ zisk-dist/zisk
+          if [ -d ./lib-float ]; then
+            cp -r ./lib-float/ zisk-dist/zisk
+          fi
           cp ./emulator-asm/Makefile zisk-dist/zisk/emulator-asm
 
       - name: Upload artifact
@@ -104,6 +187,9 @@ jobs:
     name: Publish
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     env:
       TARGET: x86_64-unknown-linux-gnu
     steps:
@@ -121,13 +207,19 @@ jobs:
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v4
+        env:
+          DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_OIDC_CONNECTIONID }}
+          # The token must outlive the image build, as buildx only pushes at the end
+          DOCKERHUB_OIDC_EXPIREIN: 3600
         with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+          username: ${{ vars.DOCKERHUB_ORGANIZATION }}
 
       - name: Publish to Docker Hub
         run: |
           image_name=nethermindeth/zisk
+          if [[ "${{ inputs.float }}" == "true" ]]; then
+            image_name=nethermindeth/zisk-float
+          fi
           tags=(-t $image_name:${{ needs.build.outputs.commit_hash }})
 
           if [[ "${{ needs.build.outputs.tag }}" != "" ]]; then

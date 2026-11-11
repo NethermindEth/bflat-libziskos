@@ -21,11 +21,21 @@ function prepare_repo() {
 
     # Copy custom target spec
     echo "Copying custom target specification..."
-    cp "${SCRIPT_DIR}/riscv64imad-zisk-zkvm-elf.json" . || fail "Failed to copy custom target specification"
+    cp "${SCRIPT_DIR}/riscv64ima-zisk-zkvm-elf.json" . || fail "Failed to copy custom target specification"
 
     # Copy patch file
     echo "Copying entrypoint patch..."
     cp "${SCRIPT_DIR}/entrypoint.patch" . || fail "Failed to copy patch file"
+
+    # Copy the windowed secp256k1 double-scalar multiplication
+    echo "Copying secp256k1 sources and patch..."
+    SECP_DIR="ziskos/entrypoint/src/zisklib/lib/secp256k1"
+    cp "${SCRIPT_DIR}/secp256k1/straus.rs" "${SCRIPT_DIR}/secp256k1/g_tables.rs" "${SECP_DIR}/" || fail "Failed to copy secp256k1 sources"
+    cp "${SCRIPT_DIR}/secp256k1/secp256k1.patch" . || fail "Failed to copy secp256k1 patch"
+
+    # Pass Fp2 operands to the complex-field syscalls in place
+    echo "Copying Fp2 patch..."
+    cp "${SCRIPT_DIR}/fp2/fp2.patch" . || fail "Failed to copy Fp2 patch"
 
     popd > /dev/null
 }
@@ -50,25 +60,45 @@ function build_in_docker() {
             sed -i '3a\\use std::env;' lib-c/build.rs
             sed -i '9a\\    if env::var(\"CARGO_CFG_TARGET_OS\").unwrap_or_default() == \"zkvm\" {\\n        println!(\"cargo:rustc-cfg=feature=\\\\\"no_lib_link\\\\\"\");\\n        return;\\n    }' lib-c/build.rs
 
-            echo 'Building ziskos entrypoint for riscv64imad-zisk-zkvm-elf...'
+            echo 'Building ziskos entrypoint for riscv64ima-zisk-zkvm-elf...'
+
+            # zisk v1.0.0-alpha ships a rust-toolchain.toml pinning the 'stable'
+            # channel, but build-std requires nightly + rust-src. Drop the override
+            # so the build uses the image's default nightly toolchain, which already
+            # has rust-src installed (the plain 'nightly' channel does not).
+            rm -f rust-toolchain.toml rust-toolchain
 
             echo 'Applying patches for no_entrypoint feature...'
             # Apply patch to wrap _start, _zisk_main, memcpy, memmove and replace sys_alloc_aligned
             patch -p1 -l < /workspace/entrypoint.patch || exit 1
+            patch -p1 < /workspace/secp256k1.patch || exit 1
+            patch -p1 < /workspace/fp2.patch || exit 1
+
+            # Rename DMA mem* symbols to __wrap_* (done with sed rather than the
+            # patch so upstream changes to the instruction bodies do not break it)
+            sed -i -E 's/\\b(memcmp|memcpy|memmove|memset)\\b/__wrap_\\1/g' ziskos/entrypoint/src/dma/mem{cmp,cpy,move,set}.s
 
             cd ziskos/entrypoint
+
+            # Ensure staticlib output (dropped from crate-type in zisk v0.18.0)
+            sed -i 's/^crate-type = \[\"rlib\"\]$/crate-type = [\"rlib\", \"staticlib\"]/' Cargo.toml
 
             # Add no_entrypoint to existing [features] section
             sed -i '/^\[features\]/a no_entrypoint = []' Cargo.toml
 
-            cargo +nightly build --release --target /workspace/riscv64imad-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
+            # Provide a panic_handler stub (crate became no_std for zkvm in v0.18.0,
+            # and a staticlib in no_std requires #[panic_handler]; bflat handles
+            # actual panic delivery via sys_panic).
+            printf '\n#[cfg(all(target_os = \"zkvm\", target_vendor = \"zisk\"))]\n#[panic_handler]\nfn _bflat_panic_handler(_info: &core::panic::PanicInfo) -> ! { loop {} }\n' >> src/lib.rs
+
+            cargo build --release --target /workspace/riscv64ima-zisk-zkvm-elf.json -Z build-std=std,panic_abort -Z json-target-spec --features no_entrypoint
 
             echo 'Build completed!'
         " || fail "Failed to build ziskos entrypoint"
 
         # Copy the built library
         echo "Copying built library..."
-        BUILT_LIB="target/riscv64imad-zisk-zkvm-elf/release/libziskos.a"
+        BUILT_LIB="target/riscv64ima-zisk-zkvm-elf/release/libziskos.a"
         if [ -f "${BUILT_LIB}" ]; then
             cp "${BUILT_LIB}" "${OUTPUT_DIR}/libziskos.a" || fail "Failed to copy built library"
             echo "Library copied to ${OUTPUT_DIR}/libziskos.a"
@@ -107,6 +137,18 @@ function build_syscalls() {
     fi
 }
 
+function build_platform() {
+    # The entry point, the memory maps and the platform manifests
+    # (platform/), assembled in the builder image, which has the RISC-V
+    # binutils.
+    echo "Building the ZisK platform..."
+    docker run --rm \
+        -v "${ROOT_DIR}/platform:/platform" \
+        -v "${OUTPUT_DIR}:/output" \
+        ziskos-builder \
+        bash /platform/build.sh /output || fail "Failed to build the ZisK platform"
+}
+
 function copy_manifest() {
     # Copy manifest
     echo "Copying bflat-manifest.json..."
@@ -114,7 +156,7 @@ function copy_manifest() {
         cp "${ROOT_DIR}/bflat-manifest.json" "${OUTPUT_DIR}/libziskos.bflat.manifest" || fail "Failed to copy bflat-manifest.json"
 
         if [ -n "${ZISK_COMMIT}" ] && command -v jq &>/dev/null; then
-            jq --arg hash "${ZISK_COMMIT}" '. + {zisk_ref_hash: $hash}' \
+            jq --arg hash "${ZISK_COMMIT}" '.metadata.zisk_ref_hash = $hash' \
                 "${OUTPUT_DIR}/libziskos.bflat.manifest" > "${OUTPUT_DIR}/libziskos.bflat.manifest.tmp" \
                 && mv "${OUTPUT_DIR}/libziskos.bflat.manifest.tmp" "${OUTPUT_DIR}/libziskos.bflat.manifest"
             echo "Injected zisk_ref_hash: ${ZISK_COMMIT}"

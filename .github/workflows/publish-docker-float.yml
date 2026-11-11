@@ -1,0 +1,33 @@
+name: Publish ZisK Float Docker image
+
+on:
+  workflow_dispatch:
+    inputs:
+      zisk_ref:
+        description: Zisk ref
+        required: true
+        type: string
+        default: main
+      zisk_repo:
+        description: Zisk repository
+        required: false
+        type: string
+        default: 0xPolygonHermez/zisk
+      disable_avx512:
+        description: Force AVX2-baseline build (neuter pil2-proofman AVX-512 detection)
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    uses: ./.github/workflows/publish-docker.yml
+    permissions:
+      contents: read
+      id-token: write
+    secrets: inherit
+    with:
+      zisk_ref: ${{ inputs.zisk_ref }}
+      zisk_repo: ${{ inputs.zisk_repo }}
+      float: true
+      disable_avx512: ${{ inputs.disable_avx512 }}

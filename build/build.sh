@@ -21,7 +21,7 @@ OUTPUT_DIR="${ROOT_DIR}/output"
 
 echo "Building libziskos"
 echo "Tag: ${ZISK_REF}"
-echo "Target: riscv64imad-zisk-zkvm-elf"
+echo "Target: riscv64ima-zisk-zkvm-elf"
 echo ""
 
 . "${SCRIPT_DIR}/build.lib.sh"
@@ -32,6 +32,7 @@ build_docker_image
 build_in_docker
 build_syscalls
 copy_manifest
+build_platform
 
 echo "Build completed"
 echo "Output: ${OUTPUT_DIR}/libziskos.a"
