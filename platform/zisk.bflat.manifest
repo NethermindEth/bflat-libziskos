@@ -79,6 +79,16 @@
         "note": "dotnet-riscv fixup perf-65: unrolled block copies of 16+ bytes as the ZisK DMA memcpy idiom."
       },
       {
+        "value": "JitZkInitLocallocOnly=1",
+        "when": {"optimize": true},
+        "note": "dotnet-riscv fixup riscv32/07 (TARGET_RISCV, so in the riscv64 JIT too): a method marked to initialize its locals zeroes only its stackalloc. C# writes a local before it reads it."
+      },
+      {
+        "value": "JitZkNewObjInPlace=1",
+        "when": {"optimize": true},
+        "note": "dotnet-riscv fixup riscv32/07: a struct newobj stored straight into an address-taken local is constructed there, not in a zeroed temp copied into it."
+      },
+      {
         "value": "EnableRiscV64Compressed=0",
         "note": "The decoder has no C extension, and a single-threaded guest needs no atomics: the managed .text stays 32-bit and lock-free (dotnet-riscv fixups 24/25). Check with --error-on-compressed / --error-on-atomic."
       },
