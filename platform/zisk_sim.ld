@@ -83,7 +83,15 @@ SECTIONS
     *(.data.__security_cookie)
     *(.rodata)
     *(.rodata.*)
-    *(.init_array .init_array.*)
+    /* The constructors, between the symbols the libc start code walks. Without
+     * them no constructor runs - the one of pal that publishes the heap floor
+     * (g_zk_heap_floor) among them, and the floor reads zero: the inline
+     * allocation of the JIT then never sees the heap as full. */
+    . = ALIGN(8);
+    PROVIDE_HIDDEN(__init_array_start = .);
+    KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+    KEEP(*(.init_array))
+    PROVIDE_HIDDEN(__init_array_end = .);
     *(.got .got .got.*)
   } :data
 
