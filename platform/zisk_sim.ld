@@ -100,10 +100,12 @@ SECTIONS
     *(.bss .bss.* COMMON)
   } :data
 
-  .stack ALIGN(16) :
+  .stack (NOLOAD) : ALIGN(16)
   {
+      /* As large as the stack of zisk.ld (STACK_SIZE), so that a program runs
+       * here with the frames it runs with there. */
       _init_stack_bottom = .;
-      . = . + (64 * 1024);
+      . = . + (4 * 1024 * 1024);
       _init_stack_top = .;
   } :data
 
